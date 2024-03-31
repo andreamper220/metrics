@@ -1,3 +1,3 @@
 module github.com/andreamper220/metrics.git
 
-go 1.21.8
+go 1.22.1
