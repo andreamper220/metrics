@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	_const "github.com/andreamper220/metrics.git/internal/const"
+	constants "github.com/andreamper220/metrics.git/internal/const"
 	metric "github.com/andreamper220/metrics.git/internal/server"
 )
 
@@ -31,7 +31,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			request{
 				http.MethodPost,
-				_const.GaugeMetricType,
+				constants.GaugeMetricType,
 				"test_metric_gauge",
 				"2.50",
 			},
@@ -42,7 +42,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			request{
 				http.MethodPost,
-				_const.CounterMetricType,
+				constants.CounterMetricType,
 				"test_metric_counter",
 				"2",
 			},
@@ -53,7 +53,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			request{
 				http.MethodGet,
-				_const.GaugeMetricType,
+				constants.GaugeMetricType,
 				"test_metric_gauge",
 				"2.50",
 			},
@@ -64,7 +64,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			request{
 				http.MethodPost,
-				_const.GaugeMetricType,
+				constants.GaugeMetricType,
 				"",
 				"2.50",
 			},
@@ -86,7 +86,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			request{
 				http.MethodPost,
-				_const.GaugeMetricType,
+				constants.GaugeMetricType,
 				"test_metric_gauge",
 				"metric",
 			},
@@ -97,7 +97,7 @@ func TestUpdateMetric(t *testing.T) {
 		{
 			request{
 				http.MethodPost,
-				_const.CounterMetricType,
+				constants.CounterMetricType,
 				"test_metric_counter",
 				"2.50",
 			},

@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	_const "github.com/andreamper220/metrics.git/internal/const"
+	constants "github.com/andreamper220/metrics.git/internal/const"
 	metric "github.com/andreamper220/metrics.git/internal/server"
 )
 
@@ -19,16 +19,16 @@ func TestSendMetrics(t *testing.T) {
 		{
 			name: "send counter",
 			storage: MemStorage{
-				counters: map[_const.CounterMetricName]int64{
-					_const.PollCount: 1,
+				counters: map[constants.CounterMetricName]int64{
+					constants.PollCount: 1,
 				},
 			},
 		},
 		{
 			name: "send gauge",
 			storage: MemStorage{
-				gauges: map[_const.GaugeMetricName]float64{
-					_const.Alloc: 2.5,
+				gauges: map[constants.GaugeMetricName]float64{
+					constants.Alloc: 2.5,
 				},
 			},
 		},

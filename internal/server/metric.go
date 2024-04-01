@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	_const "github.com/andreamper220/metrics.git/internal/const"
+	constants "github.com/andreamper220/metrics.git/internal/const"
 )
 
 type MemStorage struct {
@@ -53,7 +53,7 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.PathValue("type") {
-	case _const.CounterMetricType:
+	case constants.CounterMetricType:
 		value, err := strconv.ParseInt(r.PathValue("value"), 10, 64)
 		if err != nil {
 			http.Error(w, "Incorrect metric VALUE: "+err.Error(), http.StatusBadRequest)
@@ -63,7 +63,7 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		metric := counterMetric{name, value}
 		metric.store()
 		fmt.Printf("[%s => %v] metric is in storage\n", name, storage.counters[name])
-	case _const.GaugeMetricType:
+	case constants.GaugeMetricType:
 		value, err := strconv.ParseFloat(r.PathValue("value"), 64)
 		if err != nil {
 			http.Error(w, "Incorrect metric VALUE: "+err.Error(), http.StatusBadRequest)

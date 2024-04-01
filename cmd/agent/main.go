@@ -7,51 +7,51 @@ import (
 	"runtime"
 	"time"
 
-	_const "github.com/andreamper220/metrics.git/internal/const"
+	constants "github.com/andreamper220/metrics.git/internal/const"
 )
 
 type MemStorage struct {
-	counters map[_const.CounterMetricName]int64
-	gauges   map[_const.GaugeMetricName]float64
+	counters map[constants.CounterMetricName]int64
+	gauges   map[constants.GaugeMetricName]float64
 }
 
 func (ms *MemStorage) writeMetrics() {
 	var mstats runtime.MemStats
-	ms.gauges = map[_const.GaugeMetricName]float64{
-		_const.Alloc:         float64(mstats.Alloc),
-		_const.BuckHashSys:   float64(mstats.BuckHashSys),
-		_const.Frees:         float64(mstats.Frees),
-		_const.GcCpuFraction: mstats.GCCPUFraction,
-		_const.GcSys:         float64(mstats.GCSys),
-		_const.HeapAlloc:     float64(mstats.HeapAlloc),
-		_const.HeapIdle:      float64(mstats.HeapIdle),
-		_const.HeapInuse:     float64(mstats.HeapInuse),
-		_const.HeapObjects:   float64(mstats.HeapObjects),
-		_const.HeapReleased:  float64(mstats.HeapReleased),
-		_const.HeapSys:       float64(mstats.HeapSys),
-		_const.LastGc:        float64(mstats.LastGC),
-		_const.Lookups:       float64(mstats.Lookups),
-		_const.MemCacheInuse: float64(mstats.MCacheInuse),
-		_const.MemCacheSys:   float64(mstats.MCacheSys),
-		_const.MemSpanInuse:  float64(mstats.MSpanInuse),
-		_const.MemSpanSys:    float64(mstats.MSpanSys),
-		_const.MemAllocs:     float64(mstats.Mallocs),
-		_const.NextGc:        float64(mstats.NextGC),
-		_const.NumForcedGc:   float64(mstats.NumForcedGC),
-		_const.NumGc:         float64(mstats.NumGC),
-		_const.OtherSys:      float64(mstats.OtherSys),
-		_const.PauseTotalNs:  float64(mstats.PauseTotalNs),
-		_const.RandomValue:   rand.Float64(),
-		_const.StackInuse:    float64(mstats.StackInuse),
-		_const.StackSys:      float64(mstats.StackSys),
-		_const.Sys:           float64(mstats.Sys),
-		_const.TotalAlloc:    float64(mstats.TotalAlloc),
+	ms.gauges = map[constants.GaugeMetricName]float64{
+		constants.Alloc:         float64(mstats.Alloc),
+		constants.BuckHashSys:   float64(mstats.BuckHashSys),
+		constants.Frees:         float64(mstats.Frees),
+		constants.GcCpuFraction: mstats.GCCPUFraction,
+		constants.GcSys:         float64(mstats.GCSys),
+		constants.HeapAlloc:     float64(mstats.HeapAlloc),
+		constants.HeapIdle:      float64(mstats.HeapIdle),
+		constants.HeapInuse:     float64(mstats.HeapInuse),
+		constants.HeapObjects:   float64(mstats.HeapObjects),
+		constants.HeapReleased:  float64(mstats.HeapReleased),
+		constants.HeapSys:       float64(mstats.HeapSys),
+		constants.LastGc:        float64(mstats.LastGC),
+		constants.Lookups:       float64(mstats.Lookups),
+		constants.MemCacheInuse: float64(mstats.MCacheInuse),
+		constants.MemCacheSys:   float64(mstats.MCacheSys),
+		constants.MemSpanInuse:  float64(mstats.MSpanInuse),
+		constants.MemSpanSys:    float64(mstats.MSpanSys),
+		constants.MemAllocs:     float64(mstats.Mallocs),
+		constants.NextGc:        float64(mstats.NextGC),
+		constants.NumForcedGc:   float64(mstats.NumForcedGC),
+		constants.NumGc:         float64(mstats.NumGC),
+		constants.OtherSys:      float64(mstats.OtherSys),
+		constants.PauseTotalNs:  float64(mstats.PauseTotalNs),
+		constants.RandomValue:   rand.Float64(),
+		constants.StackInuse:    float64(mstats.StackInuse),
+		constants.StackSys:      float64(mstats.StackSys),
+		constants.Sys:           float64(mstats.Sys),
+		constants.TotalAlloc:    float64(mstats.TotalAlloc),
 	}
-	ms.counters[_const.PollCount] = 1
+	ms.counters[constants.PollCount] = 1
 }
 
 func sendMetric(url, name, value string) error {
-	requestURL := fmt.Sprintf("%s/update/%s/%s/%s", url, _const.GaugeMetricType, name, value)
+	requestURL := fmt.Sprintf("%s/update/%s/%s/%s", url, constants.GaugeMetricType, name, value)
 	req, err := http.NewRequest(http.MethodPost, requestURL, nil)
 	if err != nil {
 		return err
@@ -86,8 +86,8 @@ func main() {
 	pollQuit := make(chan bool)
 	reportQuit := make(chan bool)
 	storage := &MemStorage{
-		gauges:   make(map[_const.GaugeMetricName]float64, 28),
-		counters: make(map[_const.CounterMetricName]int64, 1),
+		gauges:   make(map[constants.GaugeMetricName]float64, 28),
+		counters: make(map[constants.CounterMetricName]int64, 1),
 	}
 
 	pollInterval := 2
