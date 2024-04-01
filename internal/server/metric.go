@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	constants "github.com/andreamper220/metrics.git/internal/const"
+	"github.com/andreamper220/metrics.git/internal/constants"
 )
 
 type MemStorage struct {

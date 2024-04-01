@@ -1,4 +1,4 @@
-package _const
+package constants
 
 const (
 	GaugeMetricType   = "gauge"
@@ -11,7 +11,7 @@ const (
 	Alloc         = GaugeMetricName("Alloc")
 	BuckHashSys   = GaugeMetricName("BuckHashSys")
 	Frees         = GaugeMetricName("Frees")
-	GcCpuFraction = GaugeMetricName("GCCPUFraction")
+	GcCPUFraction = GaugeMetricName("GCCPUFraction")
 	GcSys         = GaugeMetricName("GCSys")
 	HeapAlloc     = GaugeMetricName("HeapAlloc")
 	HeapIdle      = GaugeMetricName("HeapIdle")

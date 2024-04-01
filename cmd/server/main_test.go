@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	constants "github.com/andreamper220/metrics.git/internal/const"
+	"github.com/andreamper220/metrics.git/internal/constants"
 	metric "github.com/andreamper220/metrics.git/internal/server"
 )
 
@@ -122,11 +122,13 @@ func TestUpdateMetric(t *testing.T) {
 						"text/plain", nil,
 					)
 					assert.Equal(t, tt.want.code, res.StatusCode)
+					assert.NoError(t, res.Body.Close())
 				case http.MethodGet:
 					res, _ := http.Get(fmt.Sprintf("%s/update/%s/%s/%s",
 						server.URL, tt.got.metricType, tt.got.metricName, tt.got.metricValue),
 					)
 					assert.Equal(t, tt.want.code, res.StatusCode)
+					assert.NoError(t, res.Body.Close())
 				default:
 					t.Fatal("No such method: " + tt.got.method)
 				}

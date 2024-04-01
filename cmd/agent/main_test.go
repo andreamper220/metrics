@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	constants "github.com/andreamper220/metrics.git/internal/const"
+	"github.com/andreamper220/metrics.git/internal/constants"
 	metric "github.com/andreamper220/metrics.git/internal/server"
 )
 

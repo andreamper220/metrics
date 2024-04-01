@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	constants "github.com/andreamper220/metrics.git/internal/const"
+	"github.com/andreamper220/metrics.git/internal/constants"
 )
 
 type MemStorage struct {
@@ -21,7 +21,7 @@ func (ms *MemStorage) writeMetrics() {
 		constants.Alloc:         float64(mstats.Alloc),
 		constants.BuckHashSys:   float64(mstats.BuckHashSys),
 		constants.Frees:         float64(mstats.Frees),
-		constants.GcCpuFraction: mstats.GCCPUFraction,
+		constants.GcCPUFraction: mstats.GCCPUFraction,
 		constants.GcSys:         float64(mstats.GCSys),
 		constants.HeapAlloc:     float64(mstats.HeapAlloc),
 		constants.HeapIdle:      float64(mstats.HeapIdle),
@@ -62,7 +62,9 @@ func sendMetric(url, name, value string) error {
 		Timeout: 30 * time.Second,
 	}
 
-	_, err = client.Do(req)
+	res, err := client.Do(req)
+	defer res.Body.Close()
+
 	return err
 }
 
