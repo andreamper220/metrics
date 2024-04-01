@@ -63,9 +63,11 @@ func sendMetric(url, name, value string) error {
 	}
 
 	res, err := client.Do(req)
-	defer res.Body.Close()
+	if err != nil {
+		return err
+	}
 
-	return err
+	return res.Body.Close()
 }
 
 func (ms *MemStorage) sendMetrics(url string) error {
