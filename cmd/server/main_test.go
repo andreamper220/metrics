@@ -177,7 +177,7 @@ func TestShowMetric(t *testing.T) {
 			response: response{
 				code: http.StatusOK,
 			},
-			value: "1.500000",
+			value: "1.5",
 		},
 		{
 			request: request{
@@ -258,4 +258,5 @@ func TestShowMetrics(t *testing.T) {
 	resp, err := io.ReadAll(res.Body)
 	require.NoError(t, err)
 	assert.NotEmpty(t, string(resp))
+	require.NoError(t, res.Body.Close())
 }

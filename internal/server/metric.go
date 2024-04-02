@@ -124,7 +124,7 @@ func ShowMetric(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		value = fmt.Sprintf("%f", gaugeValue)
+		value = fmt.Sprintf("%g", gaugeValue)
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
