@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -41,6 +43,14 @@ func ParseFlags() {
 	flag.Var(&addr, "a", "server address host:port")
 
 	flag.Parse()
+
+	if addrEnv := os.Getenv("ADDRESS"); addrEnv != "" {
+		err := addr.Set(addrEnv)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
+	}
 
 	Config.ServerAddress = addr
 }
