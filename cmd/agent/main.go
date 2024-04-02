@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	config "github.com/andreamper220/metrics.git/internal/config/agent"
 	"github.com/andreamper220/metrics.git/internal/constants"
 )
 
@@ -68,10 +69,10 @@ func (ms *MemStorage) sendMetrics(url string) error {
 	}
 
 	for name, value := range ms.gauges {
-		err = sendMetric(url, string(constants.GaugeMetricType), string(name), fmt.Sprintf("%f", value), client)
+		err = sendMetric(url, constants.GaugeMetricType, string(name), fmt.Sprintf("%f", value), client)
 	}
 	for name, value := range ms.counters {
-		err = sendMetric(url, string(constants.CounterMetricType), string(name), fmt.Sprintf("%d", value), client)
+		err = sendMetric(url, constants.CounterMetricType, string(name), fmt.Sprintf("%d", value), client)
 	}
 
 	// return last error
@@ -79,6 +80,11 @@ func (ms *MemStorage) sendMetrics(url string) error {
 }
 
 func main() {
+	config.ParseFlags()
+	fmt.Println(config.Config.ServerAddress.String())
+	fmt.Println(config.Config.ReportInterval)
+	fmt.Println(config.Config.PollInterval)
+
 	pollDone := make(chan bool)
 	reportDone := make(chan bool)
 	pollQuit := make(chan bool)
@@ -88,8 +94,7 @@ func main() {
 		counters: make(map[constants.CounterMetricName]int64, 1),
 	}
 
-	pollInterval := 2
-	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	pollTicker := time.NewTicker(time.Duration(config.Config.PollInterval) * time.Second)
 	go func() {
 		for {
 			select {
@@ -105,13 +110,12 @@ func main() {
 		}
 	}()
 
-	reportInterval := 10
-	reportTicker := time.NewTicker(time.Duration(reportInterval) * time.Second)
+	reportTicker := time.NewTicker(time.Duration(config.Config.ReportInterval) * time.Second)
 	go func() {
 		for {
 			select {
 			case <-reportTicker.C:
-				if err := storage.sendMetrics("http://localhost:8080"); err != nil {
+				if err := storage.sendMetrics("http://" + config.Config.ServerAddress.String()); err != nil {
 					fmt.Println(err.Error())
 				}
 			case <-reportQuit:
