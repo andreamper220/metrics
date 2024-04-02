@@ -2,7 +2,9 @@ package metric
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/andreamper220/metrics.git/internal/constants"
@@ -41,20 +43,15 @@ func (m *gaugeMetric) store() {
 }
 
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST requests allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	name := r.PathValue("name")
+	name := chi.URLParam(r, "name")
 	if name == "" {
 		http.Error(w, "Not found metric NAME.", http.StatusNotFound)
 		return
 	}
 
-	switch r.PathValue("type") {
+	switch chi.URLParam(r, "type") {
 	case constants.CounterMetricType:
-		value, err := strconv.ParseInt(r.PathValue("value"), 10, 64)
+		value, err := strconv.ParseInt(chi.URLParam(r, "value"), 10, 64)
 		if err != nil {
 			http.Error(w, "Incorrect metric VALUE: "+err.Error(), http.StatusBadRequest)
 			return
@@ -62,9 +59,8 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 		metric := counterMetric{name, value}
 		metric.store()
-		fmt.Printf("[%s => %v] metric is in storage\n", name, storage.counters[name])
 	case constants.GaugeMetricType:
-		value, err := strconv.ParseFloat(r.PathValue("value"), 64)
+		value, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
 			http.Error(w, "Incorrect metric VALUE: "+err.Error(), http.StatusBadRequest)
 			return
@@ -72,11 +68,71 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 		metric := gaugeMetric{name, value}
 		metric.store()
-		fmt.Printf("[%s => %v] metric is in storage\n", name, storage.gauges[name])
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func ShowMetrics(w http.ResponseWriter, r *http.Request) {
+	body := "== COUNTERS:\r\n"
+	counterNames := make([]string, 0, len(storage.counters))
+	for name := range storage.counters {
+		counterNames = append(counterNames, name)
+	}
+	sort.Strings(counterNames)
+	for _, name := range counterNames {
+		body += fmt.Sprintf("= %s => %v\r\n", name, storage.counters[name])
+	}
+
+	body += "== GAUGES:\r\n"
+	gaugeNames := make([]string, 0, len(storage.gauges))
+	for name := range storage.gauges {
+		gaugeNames = append(gaugeNames, name)
+	}
+	sort.Strings(gaugeNames)
+	for _, name := range gaugeNames {
+		body += fmt.Sprintf("= %s => %v\r\n", name, storage.gauges[name])
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(body))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func ShowMetric(w http.ResponseWriter, r *http.Request) {
+	var value string
+	name := chi.URLParam(r, "name")
+
+	switch chi.URLParam(r, "type") {
+	case constants.CounterMetricType:
+		counterValue, ok := storage.counters[name]
+		if !ok {
+			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
+			return
+		}
+
+		value = fmt.Sprintf("%d", counterValue)
+	case constants.GaugeMetricType:
+		gaugeValue, ok := storage.gauges[name]
+		if !ok {
+			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
+			return
+		}
+
+		value = fmt.Sprintf("%f", gaugeValue)
+	default:
+		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(value))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

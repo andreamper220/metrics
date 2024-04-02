@@ -50,19 +50,10 @@ func (ms *MemStorage) writeMetrics() {
 	ms.counters[constants.PollCount] = 1
 }
 
-func sendMetric(url, name, value string) error {
-	requestURL := fmt.Sprintf("%s/update/%s/%s/%s", url, constants.GaugeMetricType, name, value)
-	req, err := http.NewRequest(http.MethodPost, requestURL, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "text/plain")
+func sendMetric(url, mType, name, value string, client *http.Client) error {
+	requestURL := fmt.Sprintf("%s/update/%s/%s/%s", url, mType, name, value)
 
-	client := http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	res, err := client.Do(req)
+	res, err := client.Post(requestURL, "text/plain", http.NoBody)
 	if err != nil {
 		return err
 	}
@@ -72,12 +63,15 @@ func sendMetric(url, name, value string) error {
 
 func (ms *MemStorage) sendMetrics(url string) error {
 	var err error = nil
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
 
 	for name, value := range ms.gauges {
-		err = sendMetric(url, string(name), fmt.Sprintf("%f", value))
+		err = sendMetric(url, string(constants.GaugeMetricType), string(name), fmt.Sprintf("%f", value), client)
 	}
 	for name, value := range ms.counters {
-		err = sendMetric(url, string(name), fmt.Sprintf("%d", value))
+		err = sendMetric(url, string(constants.CounterMetricType), string(name), fmt.Sprintf("%d", value), client)
 	}
 
 	// return last error
