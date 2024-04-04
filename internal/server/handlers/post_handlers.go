@@ -15,10 +15,6 @@ var storage = &storages.MemStorage{
 	Gauges:   make(map[shared.GaugeMetricName]float64),
 }
 
-type metric interface {
-	store()
-}
-
 type counterMetric struct {
 	name  string
 	value int64
