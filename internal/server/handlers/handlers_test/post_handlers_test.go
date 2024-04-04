@@ -2,8 +2,9 @@ package handlers_test
 
 import (
 	"fmt"
-	"github.com/andreamper220/metrics.git/internal/shared"
 	"net/http"
+
+	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 func (s *HandlerTestSuite) TestUpdateMetric() {
