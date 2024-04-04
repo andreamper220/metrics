@@ -22,6 +22,9 @@ func Run() error {
 			select {
 			case <-pollTicker.C:
 				storage.WriteMetrics()
+			case <-blockDone:
+				pollTicker.Stop()
+				return
 			}
 		}
 	}()
@@ -34,6 +37,9 @@ func Run() error {
 				if err := storage.SendMetrics("http://" + Config.ServerAddress.String()); err != nil {
 					fmt.Println(err.Error())
 				}
+			case <-blockDone:
+				reportTicker.Stop()
+				return
 			}
 		}
 	}()
