@@ -70,11 +70,6 @@ jobs:
             echo "These files are not formatted with 'goimports': $unformatted"
             exit 1
           fi
-          unformatted=$(find . -name '*.go' -exec golines -w {} -m 120 \;)
-          if [ -n "$unformatted" ]; then
-            echo "These files are not formatted with 'golines': $unformatted"
-            exit 1
-          fi
           golangci-lint run ./...
 
       - name: Build server binary
