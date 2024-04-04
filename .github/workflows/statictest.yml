@@ -14,6 +14,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Lint code
+        run: |
+          unformatted=$(go fmt ./...)
+          if [ -n "$unformatted" ]; then 
+            echo "These files are not formatted with 'go fmt': $unformatted"
+            exit 1
+          fi
+          unformatted=$(find . -name '*.go' -exec goimports -local go-echo-ddd-template/ -l {} +)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not formatted with 'goimports': $unformatted"
+            exit 1
+          fi
+          unformatted=$(find . -name '*.go' -exec golines -w {} -m 120 \;)
+          if [ -n "$unformatted" ]; then
+            echo "These files are not formatted with 'golines': $unformatted"
+            exit 1
+          fi
+          golangci-lint run ./...
+
       - name: Download statictest binary
         uses: robinraju/release-downloader@v1.8
         with:
