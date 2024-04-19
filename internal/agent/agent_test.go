@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"github.com/andreamper220/metrics.git/internal/logger"
 	"net/http/httptest"
 	"testing"
 
@@ -36,6 +37,10 @@ func TestSendMetrics(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if err := logger.Initialize(); err != nil {
+				t.Fatal(err.Error())
+			}
+
 			r := server.MakeRouter()
 			srv := httptest.NewServer(r)
 			defer srv.Close()
