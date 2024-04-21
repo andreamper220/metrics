@@ -18,6 +18,10 @@ func MakeRouter() *chi.Mux {
 	})
 	r.Post(`/update/`, middlewares.WithLogging(handlers.UpdateMetric))
 
+	// deprecated
+	r.Get(`/value/{type}/{name}`, middlewares.WithLogging(handlers.ShowMetricOld))
+	r.Post(`/update/{type}/{name}/{value}`, middlewares.WithLogging(handlers.UpdateMetricOld))
+
 	return r
 }
 

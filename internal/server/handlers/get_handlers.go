@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"sort"
 
@@ -73,4 +74,37 @@ func ShowMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
+}
+
+func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
+	var value string
+	name := chi.URLParam(r, "name")
+
+	switch chi.URLParam(r, "type") {
+	case shared.CounterMetricType:
+		counterValue, ok := storage.Counters[shared.CounterMetricName(name)]
+		if !ok {
+			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
+			return
+		}
+
+		value = fmt.Sprintf("%d", counterValue)
+	case shared.GaugeMetricType:
+		gaugeValue, ok := storage.Gauges[shared.GaugeMetricName(name)]
+		if !ok {
+			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
+			return
+		}
+
+		value = fmt.Sprintf("%g", gaugeValue)
+	default:
+		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_, err := w.Write([]byte(value))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
