@@ -1,11 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
-
-	"github.com/go-chi/chi/v5"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
@@ -39,34 +38,39 @@ func ShowMetrics(w http.ResponseWriter, r *http.Request) {
 }
 
 func ShowMetric(w http.ResponseWriter, r *http.Request) {
-	var value string
-	name := chi.URLParam(r, "name")
+	var metric shared.Metric
 
-	switch chi.URLParam(r, "type") {
+	// json decoder
+	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	switch metric.MType {
 	case shared.CounterMetricType:
-		counterValue, ok := storage.Counters[shared.CounterMetricName(name)]
+		delta, ok := storage.Counters[shared.CounterMetricName(metric.ID)]
 		if !ok {
-			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
+			http.Error(w, "Incorrect metric ID.", http.StatusNotFound)
 			return
 		}
 
-		value = fmt.Sprintf("%d", counterValue)
+		metric.Delta = &delta
 	case shared.GaugeMetricType:
-		gaugeValue, ok := storage.Gauges[shared.GaugeMetricName(name)]
+		value, ok := storage.Gauges[shared.GaugeMetricName(metric.ID)]
 		if !ok {
-			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
+			http.Error(w, "Incorrect metric ID.", http.StatusNotFound)
 			return
 		}
 
-		value = fmt.Sprintf("%g", gaugeValue)
+		metric.Value = &value
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(value))
-	if err != nil {
+	// json encoder
+	if err := json.NewEncoder(w).Encode(metric); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	w.WriteHeader(http.StatusOK)
 }

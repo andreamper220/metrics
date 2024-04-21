@@ -1,9 +1,12 @@
 package handlers_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
@@ -26,7 +29,7 @@ func (s *HandlerTestSuite) TestShowMetric() {
 	}{
 		{
 			request: request{
-				method:     http.MethodPost,
+				method:     http.MethodGet,
 				metricType: shared.CounterMetricType,
 				metricName: "invalid_method",
 			},
@@ -37,7 +40,7 @@ func (s *HandlerTestSuite) TestShowMetric() {
 		},
 		{
 			request: request{
-				method:     http.MethodGet,
+				method:     http.MethodPost,
 				metricType: shared.CounterMetricType,
 				metricName: "valid_counter",
 			},
@@ -48,7 +51,7 @@ func (s *HandlerTestSuite) TestShowMetric() {
 		},
 		{
 			request: request{
-				method:     http.MethodGet,
+				method:     http.MethodPost,
 				metricType: shared.GaugeMetricType,
 				metricName: "valid_gauge",
 			},
@@ -59,7 +62,7 @@ func (s *HandlerTestSuite) TestShowMetric() {
 		},
 		{
 			request: request{
-				method:     http.MethodGet,
+				method:     http.MethodPost,
 				metricType: "type",
 				metricName: "invalid_type",
 			},
@@ -70,7 +73,7 @@ func (s *HandlerTestSuite) TestShowMetric() {
 		},
 		{
 			request: request{
-				method:     http.MethodGet,
+				method:     http.MethodPost,
 				metricType: shared.CounterMetricType,
 				metricName: "not_found_counter",
 			},
@@ -81,7 +84,7 @@ func (s *HandlerTestSuite) TestShowMetric() {
 		},
 		{
 			request: request{
-				method:     http.MethodGet,
+				method:     http.MethodPost,
 				metricType: shared.GaugeMetricType,
 				metricName: "not_found_gauge",
 			},
@@ -95,25 +98,59 @@ func (s *HandlerTestSuite) TestShowMetric() {
 	for _, tt := range tests {
 		s.Run(fmt.Sprintf("%s /value/%s/%s", tt.request.method, tt.request.metricType, tt.request.metricName),
 			func() {
+				var resMetric shared.Metric
+				postMetric := shared.Metric{
+					ID:    tt.request.metricName,
+					MType: tt.request.metricType,
+				}
+				getMetric := postMetric
+
 				client := &http.Client{}
 				if tt.value != "" {
-					res, err := client.Post(fmt.Sprintf("%s/update/%s/%s/%s",
-						s.Server.URL, tt.request.metricType, tt.request.metricName, tt.value), "text/plain", nil)
+					switch tt.request.metricType {
+					case shared.CounterMetricType:
+						value, err := strconv.ParseInt(tt.value, 10, 64)
+						s.Require().NoError(err)
+						postMetric.Delta = &value
+					case shared.GaugeMetricType:
+						value, err := strconv.ParseFloat(tt.value, 64)
+						s.Require().NoError(err)
+						postMetric.Value = &value
+					}
+					body, err := json.Marshal(postMetric)
+					s.Require().NoError(err)
+
+					res, err := client.Post(
+						fmt.Sprintf("%s/update/", s.Server.URL),
+						"application/json",
+						bytes.NewBuffer(body),
+					)
 					s.Require().NoError(err)
 					s.Require().NoError(res.Body.Close())
 				}
 
-				req, err := http.NewRequest(tt.request.method, fmt.Sprintf("%s/value/%s/%s",
-					s.Server.URL, tt.request.metricType, tt.request.metricName), nil)
+				body, err := json.Marshal(getMetric)
+				s.Require().NoError(err)
+				req, err := http.NewRequest(
+					tt.request.method,
+					fmt.Sprintf("%s/value/", s.Server.URL),
+					bytes.NewBuffer(body),
+				)
 				s.Require().NoError(err)
 				res, err := client.Do(req)
 				s.Require().NoError(err)
 				s.Equal(tt.response.code, res.StatusCode)
 
 				if tt.value != "" {
-					resp, err := io.ReadAll(res.Body)
-					s.Require().NoError(err)
-					s.Equal(tt.value, string(resp))
+					s.Require().NoError(json.NewDecoder(res.Body).Decode(&resMetric))
+					var value string
+					switch tt.request.metricType {
+					case shared.CounterMetricType:
+						value = fmt.Sprintf("%d", *resMetric.Delta)
+					case shared.GaugeMetricType:
+						value = fmt.Sprintf("%g", *resMetric.Value)
+					}
+					s.Equal(tt.value, value)
 				}
 				s.Require().NoError(res.Body.Close())
 			})

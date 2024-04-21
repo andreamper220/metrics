@@ -1,11 +1,8 @@
 package storages
 
 import (
-	"fmt"
 	"math/rand"
-	"net/http"
 	"runtime"
-	"time"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
@@ -48,32 +45,4 @@ func (ms *MemStorage) WriteMetrics() {
 		shared.TotalAlloc:    float64(mstats.TotalAlloc),
 	}
 	ms.Counters[shared.PollCount] = 1
-}
-
-func sendMetric(url, mType, name, value string, client *http.Client) error {
-	requestURL := fmt.Sprintf("%s/update/%s/%s/%s", url, mType, name, value)
-
-	res, err := client.Post(requestURL, "text/plain", http.NoBody)
-	if err != nil {
-		return err
-	}
-
-	return res.Body.Close()
-}
-
-func (ms *MemStorage) SendMetrics(url string) error {
-	var err error = nil
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	for name, value := range ms.Gauges {
-		err = sendMetric(url, shared.GaugeMetricType, string(name), fmt.Sprintf("%f", value), client)
-	}
-	for name, value := range ms.Counters {
-		err = sendMetric(url, shared.CounterMetricType, string(name), fmt.Sprintf("%d", value), client)
-	}
-
-	// return last error
-	return err
 }

@@ -14,9 +14,9 @@ func MakeRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Route(`/`, func(r chi.Router) {
 		r.Get(`/`, middlewares.WithLogging(handlers.ShowMetrics))
-		r.Get(`/value/{type}/{name}`, middlewares.WithLogging(handlers.ShowMetric))
+		r.Post(`/value/`, middlewares.WithLogging(handlers.ShowMetric))
 	})
-	r.Post(`/update/{type}/{name}/{value}`, middlewares.WithLogging(handlers.UpdateMetric))
+	r.Post(`/update/`, middlewares.WithLogging(handlers.UpdateMetric))
 
 	return r
 }
