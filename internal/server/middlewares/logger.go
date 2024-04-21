@@ -9,8 +9,9 @@ import (
 
 type (
 	responseData struct {
-		size int
-		code int
+		size       int
+		code       int
+		typeHeader string
 	}
 	loggingResponseWriter struct {
 		w    http.ResponseWriter
@@ -28,6 +29,7 @@ func (lw *loggingResponseWriter) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
+	lw.data.typeHeader = lw.Header().Get("Content-Type")
 	lw.data.size += size
 	return size, nil
 }
@@ -57,6 +59,6 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 		duration := time.Since(start).Milliseconds()
 
 		logger.Log.Infof("REQUEST  | URI: %s, Method: %s, Duration: %dms", uri, method, duration)
-		logger.Log.Infof("RESPONSE | Status: %d, Size: %d", lw.data.code, lw.data.size)
+		logger.Log.Infof("RESPONSE | Status: %d, Size: %d, Type: %s", lw.data.code, lw.data.size, lw.data.typeHeader)
 	}
 }
