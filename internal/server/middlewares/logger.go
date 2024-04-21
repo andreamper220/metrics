@@ -1,6 +1,7 @@
 package middlewares
 
 import (
+	"bytes"
 	"net/http"
 	"time"
 
@@ -43,22 +44,21 @@ func (lw *loggingResponseWriter) WriteHeader(code int) {
 func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		lw := loggingResponseWriter{
-			w: w,
-			data: &responseData{
-				size: 0,
-				code: 0,
-			},
+			w:    w,
+			data: &responseData{},
 		}
 
 		start := time.Now()
 		uri := r.RequestURI
 		method := r.Method
+		var bodyBuf bytes.Buffer
+		bodyBuf.ReadFrom(r.Body)
 
 		h(&lw, r)
 
 		duration := time.Since(start).Milliseconds()
 
-		logger.Log.Infof("REQUEST  | URI: %s, Method: %s, Duration: %dms", uri, method, duration)
+		logger.Log.Infof("REQUEST  | URI: %s, Method: %s, Body: %s, Duration: %dms", uri, method, bodyBuf.String(), duration)
 		logger.Log.Infof("RESPONSE | Status: %d, Size: %d, Type: %s", lw.data.code, lw.data.size, lw.data.typeHeader)
 	}
 }
