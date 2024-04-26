@@ -46,5 +46,5 @@ func (ms *MemStorage) WriteMetrics() {
 		shared.Sys:           float64(mstats.Sys),
 		shared.TotalAlloc:    float64(mstats.TotalAlloc),
 	}
-	ms.Counters[shared.PollCount] += 1
+	ms.Counters[shared.PollCount] = 1
 }

@@ -38,7 +38,10 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	switch reqMetric.MType {
 	case shared.CounterMetricType:
-		storage.Counters[shared.CounterMetricName(reqMetric.ID)] = *reqMetric.Delta
+		var value = storage.Counters[shared.CounterMetricName(reqMetric.ID)] + *reqMetric.Delta
+
+		*reqMetric.Delta = value
+		storage.Counters[shared.CounterMetricName(reqMetric.ID)] = value
 	case shared.GaugeMetricType:
 		storage.Gauges[shared.GaugeMetricName(reqMetric.ID)] = *reqMetric.Value
 	default:
