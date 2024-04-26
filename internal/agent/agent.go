@@ -36,7 +36,7 @@ func SendMetric(url string, metric shared.Metric, client *http.Client) error {
 
 	err = retry.Do(
 		func() error {
-			req, err := http.NewRequest(http.MethodPost, requestURL, &b)
+			req, _ := http.NewRequest(http.MethodPost, requestURL, &b)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
 			res, err := client.Do(req)
