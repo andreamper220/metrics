@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -72,7 +71,7 @@ func Run() error {
 			case shared.GaugeMetricType:
 				storages.Storage.Gauges[shared.GaugeMetricName(metric.ID)] = *metric.Value
 			default:
-				return errors.New(fmt.Sprintf("Incorrect metric: %s", metric.ID))
+				return fmt.Errorf("incorrect metric: %s", metric.ID)
 			}
 		}
 	}
