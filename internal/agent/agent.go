@@ -66,17 +66,12 @@ func SendMetric(url string, metric shared.Metric, client *http.Client) error {
 func Run() error {
 	blockDone := make(chan bool)
 
-	storage := &storages.MemStorage{
-		Gauges:   make(map[shared.GaugeMetricName]float64, 28),
-		Counters: make(map[shared.CounterMetricName]int64, 1),
-	}
-
 	pollTicker := time.NewTicker(time.Duration(Config.PollInterval) * time.Second)
 	go func() {
 		for {
 			select {
 			case <-pollTicker.C:
-				storage.WriteMetrics()
+				storages.Storage.WriteMetrics()
 			case <-blockDone:
 				pollTicker.Stop()
 				return
@@ -94,7 +89,7 @@ func Run() error {
 					Timeout: 30 * time.Second,
 				}
 
-				for name, value := range storage.Gauges {
+				for name, value := range storages.Storage.Gauges {
 					if err := SendMetric(url, shared.Metric{
 						ID:    string(name),
 						MType: shared.GaugeMetricType,
@@ -103,7 +98,7 @@ func Run() error {
 						fmt.Println(err.Error())
 					}
 				}
-				for name, value := range storage.Counters {
+				for name, value := range storages.Storage.Counters {
 					if err := SendMetric(url, shared.Metric{
 						ID:    string(name),
 						MType: shared.CounterMetricType,

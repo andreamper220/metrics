@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -11,11 +12,6 @@ import (
 	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
-
-var storage = &storages.MemStorage{
-	Counters: make(map[shared.CounterMetricName]int64),
-	Gauges:   make(map[shared.GaugeMetricName]float64),
-}
 
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var reqMetric shared.Metric
@@ -38,15 +34,21 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	switch reqMetric.MType {
 	case shared.CounterMetricType:
-		var value = storage.Counters[shared.CounterMetricName(reqMetric.ID)] + *reqMetric.Delta
+		var value = storages.Storage.Counters[shared.CounterMetricName(reqMetric.ID)] + *reqMetric.Delta
 
 		*reqMetric.Delta = value
-		storage.Counters[shared.CounterMetricName(reqMetric.ID)] = value
+		storages.Storage.Counters[shared.CounterMetricName(reqMetric.ID)] = value
 	case shared.GaugeMetricType:
-		storage.Gauges[shared.GaugeMetricName(reqMetric.ID)] = *reqMetric.Value
+		storages.Storage.Gauges[shared.GaugeMetricName(reqMetric.ID)] = *reqMetric.Value
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
+	}
+
+	if storages.ToSaveMetricsAsync {
+		if err := storages.Storage.StoreMetrics(); err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 
 	// json marshal
@@ -80,7 +82,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		storage.Counters[shared.CounterMetricName(name)] += value
+		storages.Storage.Counters[shared.CounterMetricName(name)] += value
 	case shared.GaugeMetricType:
 		value, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
@@ -88,7 +90,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		storage.Gauges[shared.GaugeMetricName(name)] = value
+		storages.Storage.Gauges[shared.GaugeMetricName(name)] = value
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return

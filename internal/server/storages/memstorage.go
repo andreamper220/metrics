@@ -1,15 +1,25 @@
 package storages
 
 import (
+	"encoding/json"
 	"math/rand"
+	"os"
 	"runtime"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
+var FileStoragePath string
+var ToSaveMetricsAsync bool = false
+
 type MemStorage struct {
 	Counters map[shared.CounterMetricName]int64
 	Gauges   map[shared.GaugeMetricName]float64
+}
+
+var Storage = &MemStorage{
+	Counters: make(map[shared.CounterMetricName]int64),
+	Gauges:   make(map[shared.GaugeMetricName]float64),
 }
 
 func (ms *MemStorage) WriteMetrics() {
@@ -47,4 +57,41 @@ func (ms *MemStorage) WriteMetrics() {
 		shared.TotalAlloc:    float64(mstats.TotalAlloc),
 	}
 	ms.Counters[shared.PollCount] = 1
+}
+
+func (ms *MemStorage) StoreMetrics() error {
+	file, err := os.OpenFile(FileStoragePath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	data := make([]byte, 0)
+	for name, value := range Storage.Counters {
+		metric := &shared.Metric{
+			ID:    string(name),
+			MType: shared.CounterMetricType,
+			Delta: &value,
+		}
+		metricData, _ := json.Marshal(&metric)
+		metricData = append(metricData, '\n')
+		data = append(data, metricData...)
+	}
+
+	for name, value := range Storage.Gauges {
+		metric := &shared.Metric{
+			ID:    string(name),
+			MType: shared.GaugeMetricType,
+			Value: &value,
+		}
+		metricData, _ := json.Marshal(&metric)
+		metricData = append(metricData, '\n')
+		data = append(data, metricData...)
+	}
+
+	_, err = file.Write(data)
+
+	return err
 }

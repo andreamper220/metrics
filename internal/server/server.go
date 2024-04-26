@@ -1,13 +1,22 @@
 package server
 
 import (
+	"bufio"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/handlers"
 	"github.com/andreamper220/metrics.git/internal/server/middlewares"
+	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 func MakeRouter() *chi.Mux {
@@ -29,6 +38,67 @@ func Run() error {
 	if err := logger.Initialize(); err != nil {
 		return err
 	}
+	storages.FileStoragePath = Config.FileStoragePath
+	if Config.StoreInterval == 0 {
+		storages.ToSaveMetricsAsync = true
+	}
 
-	return http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
+	// to restore metrics from file
+	if Config.Restore {
+		file, err := os.OpenFile(Config.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = file.Close()
+		}()
+
+		fr := bufio.NewReader(file)
+		dec := json.NewDecoder(fr)
+		for {
+			var metric shared.Metric
+
+			err := dec.Decode(&metric)
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+
+			switch metric.MType {
+			case shared.CounterMetricType:
+				storages.Storage.Counters[shared.CounterMetricName(metric.ID)] = *metric.Delta
+			case shared.GaugeMetricType:
+				storages.Storage.Gauges[shared.GaugeMetricName(metric.ID)] = *metric.Value
+			default:
+				return errors.New(fmt.Sprintf("Incorrect metric: %s", metric.ID))
+			}
+		}
+	}
+
+	// to store metrics to file
+	blockDone := make(chan bool)
+	if Config.StoreInterval > 0 {
+		storeTicker := time.NewTicker(time.Duration(Config.StoreInterval) * time.Second)
+		go func() {
+			for {
+				select {
+				case <-storeTicker.C:
+					if err := storages.Storage.StoreMetrics(); err != nil {
+						fmt.Println(err.Error())
+					}
+				case <-blockDone:
+					storeTicker.Stop()
+					return
+				}
+			}
+		}()
+	}
+
+	err := http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
+	if Config.StoreInterval > 0 {
+		<-blockDone
+	}
+	return err
 }
