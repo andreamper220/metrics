@@ -13,14 +13,14 @@ import (
 func MakeRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Route(`/`, func(r chi.Router) {
-		r.Get(`/`, middlewares.WithLogging(handlers.ShowMetrics))
-		r.Post(`/value/`, middlewares.WithLogging(handlers.ShowMetric))
+		r.Get(`/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetrics)))
+		r.Post(`/value/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetric)))
 	})
-	r.Post(`/update/`, middlewares.WithLogging(handlers.UpdateMetric))
+	r.Post(`/update/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric)))
 
 	// deprecated
-	r.Get(`/value/{type}/{name}`, middlewares.WithLogging(handlers.ShowMetricOld))
-	r.Post(`/update/{type}/{name}/{value}`, middlewares.WithLogging(handlers.UpdateMetricOld))
+	r.Get(`/value/{type}/{name}`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetricOld)))
+	r.Post(`/update/{type}/{name}/{value}`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetricOld)))
 
 	return r
 }

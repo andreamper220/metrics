@@ -22,7 +22,6 @@ type (
 func (lw *loggingResponseWriter) Header() http.Header {
 	return lw.w.Header()
 }
-
 func (lw *loggingResponseWriter) Write(data []byte) (int, error) {
 	size, err := lw.w.Write(data)
 	if err != nil {
@@ -33,7 +32,6 @@ func (lw *loggingResponseWriter) Write(data []byte) (int, error) {
 	lw.data.size += size
 	return size, nil
 }
-
 func (lw *loggingResponseWriter) WriteHeader(code int) {
 	lw.w.WriteHeader(code)
 

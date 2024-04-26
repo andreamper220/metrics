@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,9 +24,22 @@ func SendMetric(url string, metric shared.Metric, client *http.Client) error {
 		return err
 	}
 
+	// gzip compression
+	var b bytes.Buffer
+	zw := gzip.NewWriter(&b)
+	if _, err := zw.Write(body); err != nil {
+		return err
+	}
+	if err := zw.Close(); err != nil {
+		return err
+	}
+
 	err = retry.Do(
 		func() error {
-			res, err := client.Post(requestURL, "application/json", bytes.NewBuffer(body))
+			req, err := http.NewRequest(http.MethodPost, requestURL, &b)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Content-Encoding", "gzip")
+			res, err := client.Do(req)
 			if err != nil {
 				var netErr net.Error
 				if (errors.As(err, &netErr) && netErr.Timeout()) ||
