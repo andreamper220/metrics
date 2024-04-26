@@ -32,6 +32,7 @@ func ShowMetrics(w http.ResponseWriter, r *http.Request) {
 		body += fmt.Sprintf("= %s => %v\r\n", name, storage.Gauges[shared.GaugeMetricName(name)])
 	}
 
+	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(body))
 	if err != nil {
