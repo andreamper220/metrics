@@ -80,7 +80,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		storage.Counters[shared.CounterMetricName(name)] = value
+		storage.Counters[shared.CounterMetricName(name)] += value
 	case shared.GaugeMetricType:
 		value, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
