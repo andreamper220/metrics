@@ -14,6 +14,8 @@ type MemStorage struct {
 
 func (ms *MemStorage) WriteMetrics() {
 	var mstats runtime.MemStats
+	runtime.ReadMemStats(&mstats)
+
 	ms.Gauges = map[shared.GaugeMetricName]float64{
 		shared.Alloc:         float64(mstats.Alloc),
 		shared.BuckHashSys:   float64(mstats.BuckHashSys),
@@ -44,5 +46,5 @@ func (ms *MemStorage) WriteMetrics() {
 		shared.Sys:           float64(mstats.Sys),
 		shared.TotalAlloc:    float64(mstats.TotalAlloc),
 	}
-	ms.Counters[shared.PollCount] = 1
+	ms.Counters[shared.PollCount] += 1
 }

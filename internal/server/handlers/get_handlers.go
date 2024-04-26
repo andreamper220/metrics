@@ -3,9 +3,10 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"sort"
+
+	"github.com/go-chi/chi/v5"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )

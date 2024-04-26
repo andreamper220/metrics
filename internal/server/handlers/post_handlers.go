@@ -3,34 +3,18 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
-	"github.com/andreamper220/metrics.git/internal/shared"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/chi/v5"
+
+	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 var storage = &storages.MemStorage{
 	Counters: make(map[shared.CounterMetricName]int64),
 	Gauges:   make(map[shared.GaugeMetricName]float64),
-}
-
-type counterMetric struct {
-	name  string
-	value int64
-}
-
-func (m *counterMetric) store() {
-	storage.Counters[shared.CounterMetricName(m.name)] += m.value
-}
-
-type gaugeMetric struct {
-	name  string
-	value float64
-}
-
-func (m *gaugeMetric) store() {
-	storage.Gauges[shared.GaugeMetricName(m.name)] = m.value
 }
 
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
@@ -54,11 +38,9 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	switch reqMetric.MType {
 	case shared.CounterMetricType:
-		metric := counterMetric{reqMetric.ID, *reqMetric.Delta}
-		metric.store()
+		storage.Counters[shared.CounterMetricName(reqMetric.ID)] = *reqMetric.Delta
 	case shared.GaugeMetricType:
-		metric := gaugeMetric{reqMetric.ID, *reqMetric.Value}
-		metric.store()
+		storage.Gauges[shared.GaugeMetricName(reqMetric.ID)] = *reqMetric.Value
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
@@ -95,8 +77,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metric := counterMetric{name, value}
-		metric.store()
+		storage.Counters[shared.CounterMetricName(name)] = value
 	case shared.GaugeMetricType:
 		value, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
@@ -104,8 +85,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		metric := gaugeMetric{name, value}
-		metric.store()
+		storage.Gauges[shared.GaugeMetricName(name)] = value
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
