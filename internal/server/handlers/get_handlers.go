@@ -3,8 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/andreamper220/metrics.git/internal/logger"
 	"html/template"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/go-chi/chi/v5"
@@ -47,9 +50,13 @@ func ShowMetrics(w http.ResponseWriter, r *http.Request) {
 		Gauges:   gauges,
 	}
 
-	tmpl, err := template.ParseFiles("internal/templates/show_metrics.html")
+	dir, _ := filepath.Split(os.Args[0])
+	filePath := filepath.Join(dir, "internal/templates/show_metrics.html")
+	tmpl, err := template.ParseFiles(filePath)
 	if err != nil {
+		logger.Log.Error(err.Error())
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
