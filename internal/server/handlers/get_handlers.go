@@ -3,39 +3,57 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"html/template"
 	"net/http"
 	"sort"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 func ShowMetrics(w http.ResponseWriter, r *http.Request) {
-	body := "== COUNTERS:\r\n"
+	//body := "== COUNTERS:\r\n"
 	counterNames := make([]string, 0, len(storages.Storage.Counters))
 	for name := range storages.Storage.Counters {
 		counterNames = append(counterNames, string(name))
 	}
 	sort.Strings(counterNames)
+	counters := make(map[string]int64, 5)
 	for _, name := range counterNames {
-		body += fmt.Sprintf("= %s => %v\r\n", name, storages.Storage.Counters[shared.CounterMetricName(name)])
+		counters[name] = storages.Storage.Counters[shared.CounterMetricName(name)]
+		//body += fmt.Sprintf("= %s => %v\r\n", name, storages.Storage.Counters[shared.CounterMetricName(name)])
 	}
 
-	body += "== GAUGES:\r\n"
+	//body += "== GAUGES:\r\n"
 	gaugeNames := make([]string, 0, len(storages.Storage.Gauges))
 	for name := range storages.Storage.Gauges {
 		gaugeNames = append(gaugeNames, string(name))
 	}
 	sort.Strings(gaugeNames)
+	gauges := make(map[string]float64, 30)
 	for _, name := range gaugeNames {
-		body += fmt.Sprintf("= %s => %v\r\n", name, storages.Storage.Gauges[shared.GaugeMetricName(name)])
+		gauges[name] = storages.Storage.Gauges[shared.GaugeMetricName(name)]
+		//body += fmt.Sprintf("= %s => %v\r\n", name, storages.Storage.Gauges[shared.GaugeMetricName(name)])
 	}
 
+	type bodyStruct struct {
+		Counters map[string]int64
+		Gauges   map[string]float64
+	}
+	body := &bodyStruct{
+		Counters: counters,
+		Gauges:   gauges,
+	}
+
+	tmpl, err := template.ParseFiles("internal/templates/show_metrics.html")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(body))
+	err = tmpl.Execute(w, body)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

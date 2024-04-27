@@ -3,12 +3,12 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
@@ -47,7 +47,7 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	if storages.ToSaveMetricsAsync {
 		if err := storages.Storage.StoreMetrics(); err != nil {
-			fmt.Println(err.Error())
+			logger.Log.Error(err.Error())
 		}
 	}
 

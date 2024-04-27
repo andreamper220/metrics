@@ -3,7 +3,6 @@ package server
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -71,7 +70,7 @@ func Run() error {
 			case shared.GaugeMetricType:
 				storages.Storage.Gauges[shared.GaugeMetricName(metric.ID)] = *metric.Value
 			default:
-				return fmt.Errorf("incorrect metric: %s", metric.ID)
+				logger.Log.Fatalf("incorrect metric: %s", metric.ID)
 			}
 		}
 	}
@@ -85,7 +84,7 @@ func Run() error {
 				select {
 				case <-storeTicker.C:
 					if err := storages.Storage.StoreMetrics(); err != nil {
-						fmt.Println(err.Error())
+						logger.Log.Error(err.Error())
 					}
 				case <-blockDone:
 					storeTicker.Stop()

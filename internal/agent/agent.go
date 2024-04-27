@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -13,12 +12,13 @@ import (
 
 	"github.com/avast/retry-go"
 
+	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 func SendMetric(url string, metric shared.Metric, client *http.Client) error {
-	requestURL := fmt.Sprintf("%s/update/", url)
+	requestURL := url + "/update/"
 	body, err := json.Marshal(metric)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func Run() error {
 						MType: shared.GaugeMetricType,
 						Value: &value,
 					}, client); err != nil {
-						fmt.Println(err.Error())
+						logger.Log.Error(err.Error())
 					}
 				}
 				for name, value := range storages.Storage.Counters {
@@ -104,7 +104,7 @@ func Run() error {
 						MType: shared.CounterMetricType,
 						Delta: &value,
 					}, client); err != nil {
-						fmt.Println(err.Error())
+						logger.Log.Error(err.Error())
 					}
 				}
 			case <-blockDone:

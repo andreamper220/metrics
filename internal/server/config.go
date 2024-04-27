@@ -3,10 +3,11 @@ package server
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/andreamper220/metrics.git/internal/logger"
 )
 
 var Config struct {
@@ -65,8 +66,7 @@ func ParseFlags() {
 	}
 
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(2)
+		logger.Log.Fatal(err.Error())
 	}
 
 	Config.ServerAddress = addr
