@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"github.com/andreamper220/metrics.git/internal/logger"
 	"net/http/httptest"
 	"testing"
 
@@ -15,6 +16,10 @@ type HandlerTestSuite struct {
 }
 
 func (s *HandlerTestSuite) SetupTest() {
+	if err := logger.Initialize(); err != nil {
+		s.Fail(err.Error())
+	}
+
 	r := server.MakeRouter()
 	s.Server = httptest.NewServer(r)
 }

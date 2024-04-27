@@ -1,22 +1,31 @@
 package storages
 
 import (
-	"fmt"
+	"encoding/json"
 	"math/rand"
-	"net/http"
+	"os"
 	"runtime"
-	"time"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
+
+var FileStoragePath string
+var ToSaveMetricsAsync bool = false
 
 type MemStorage struct {
 	Counters map[shared.CounterMetricName]int64
 	Gauges   map[shared.GaugeMetricName]float64
 }
 
+var Storage = &MemStorage{
+	Counters: make(map[shared.CounterMetricName]int64),
+	Gauges:   make(map[shared.GaugeMetricName]float64),
+}
+
 func (ms *MemStorage) WriteMetrics() {
 	var mstats runtime.MemStats
+	runtime.ReadMemStats(&mstats)
+
 	ms.Gauges = map[shared.GaugeMetricName]float64{
 		shared.Alloc:         float64(mstats.Alloc),
 		shared.BuckHashSys:   float64(mstats.BuckHashSys),
@@ -50,30 +59,39 @@ func (ms *MemStorage) WriteMetrics() {
 	ms.Counters[shared.PollCount] = 1
 }
 
-func sendMetric(url, mType, name, value string, client *http.Client) error {
-	requestURL := fmt.Sprintf("%s/update/%s/%s/%s", url, mType, name, value)
-
-	res, err := client.Post(requestURL, "text/plain", http.NoBody)
+func (ms *MemStorage) StoreMetrics() error {
+	file, err := os.OpenFile(FileStoragePath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		_ = file.Close()
+	}()
 
-	return res.Body.Close()
-}
-
-func (ms *MemStorage) SendMetrics(url string) error {
-	var err error = nil
-	client := &http.Client{
-		Timeout: 30 * time.Second,
+	data := make([]byte, 0)
+	for name, value := range Storage.Counters {
+		metric := &shared.Metric{
+			ID:    string(name),
+			MType: shared.CounterMetricType,
+			Delta: &value,
+		}
+		metricData, _ := json.Marshal(&metric)
+		metricData = append(metricData, '\n')
+		data = append(data, metricData...)
 	}
 
-	for name, value := range ms.Gauges {
-		err = sendMetric(url, shared.GaugeMetricType, string(name), fmt.Sprintf("%f", value), client)
-	}
-	for name, value := range ms.Counters {
-		err = sendMetric(url, shared.CounterMetricType, string(name), fmt.Sprintf("%d", value), client)
+	for name, value := range Storage.Gauges {
+		metric := &shared.Metric{
+			ID:    string(name),
+			MType: shared.GaugeMetricType,
+			Value: &value,
+		}
+		metricData, _ := json.Marshal(&metric)
+		metricData = append(metricData, '\n')
+		data = append(data, metricData...)
 	}
 
-	// return last error
+	_, err = file.Write(data)
+
 	return err
 }

@@ -3,14 +3,18 @@ package server
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/andreamper220/metrics.git/internal/logger"
 )
 
 var Config struct {
-	ServerAddress address
+	ServerAddress   address
+	StoreInterval   int
+	FileStoragePath string
+	Restore         bool
 }
 
 type address struct {
@@ -41,15 +45,28 @@ func ParseFlags() {
 	}
 
 	flag.Var(&addr, "a", "server address host:port")
+	flag.IntVar(&Config.StoreInterval, "i", 300, "store to file interval [sec]")
+	flag.StringVar(&Config.FileStoragePath, "f", "/tmp/metrics-db.json", "absolute path of file to store")
+	flag.BoolVar(&Config.Restore, "r", true, "to restore values from file")
 
 	flag.Parse()
 
+	var err error
 	if addrEnv := os.Getenv("ADDRESS"); addrEnv != "" {
-		err := addr.Set(addrEnv)
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
-		}
+		err = addr.Set(addrEnv)
+	}
+	if storeIntervalEnv := os.Getenv("STORE_INTERVAL"); storeIntervalEnv != "" {
+		Config.StoreInterval, err = strconv.Atoi(storeIntervalEnv)
+	}
+	if fileStoragePathEnv := os.Getenv("FILE_STORAGE_PATH"); fileStoragePathEnv != "" {
+		Config.FileStoragePath = fileStoragePathEnv
+	}
+	if restoreEnv := os.Getenv("RESTORE"); restoreEnv != "" {
+		Config.Restore, err = strconv.ParseBool(restoreEnv)
+	}
+
+	if err != nil {
+		logger.Log.Fatal(err.Error())
 	}
 
 	Config.ServerAddress = addr
