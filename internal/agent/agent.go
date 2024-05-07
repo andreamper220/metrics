@@ -13,7 +13,6 @@ import (
 	"github.com/avast/retry-go"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
@@ -71,7 +70,7 @@ func Run() error {
 		for {
 			select {
 			case <-pollTicker.C:
-				storages.Storage.WriteMetrics()
+				ReadMetrics()
 			case <-blockDone:
 				pollTicker.Stop()
 				return
@@ -89,7 +88,7 @@ func Run() error {
 					Timeout: 30 * time.Second,
 				}
 
-				for name, value := range storages.Storage.Gauges {
+				for name, value := range Metrics.Gauges {
 					if err := SendMetric(url, shared.Metric{
 						ID:    string(name),
 						MType: shared.GaugeMetricType,
@@ -98,7 +97,7 @@ func Run() error {
 						logger.Log.Error(err.Error())
 					}
 				}
-				for name, value := range storages.Storage.Counters {
+				for name, value := range Metrics.Counters {
 					if err := SendMetric(url, shared.Metric{
 						ID:    string(name),
 						MType: shared.CounterMetricType,

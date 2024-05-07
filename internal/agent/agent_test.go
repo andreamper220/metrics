@@ -53,6 +53,9 @@ func TestSendMetrics(t *testing.T) {
 			if err := logger.Initialize(); err != nil {
 				t.Fatal(err.Error())
 			}
+			if err := server.MakeStorage(); err != nil {
+				t.Fatal(err.Error())
+			}
 
 			r := server.MakeRouter()
 			srv := httptest.NewServer(r)

@@ -1,12 +1,12 @@
 package handlers_test
 
 import (
-	"github.com/andreamper220/metrics.git/internal/logger"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server"
 )
 
@@ -17,6 +17,9 @@ type HandlerTestSuite struct {
 
 func (s *HandlerTestSuite) SetupTest() {
 	if err := logger.Initialize(); err != nil {
+		s.Fail(err.Error())
+	}
+	if err := server.MakeStorage(); err != nil {
 		s.Fail(err.Error())
 	}
 

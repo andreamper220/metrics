@@ -34,19 +34,29 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 
 	switch reqMetric.MType {
 	case shared.CounterMetricType:
-		var value = storages.Storage.Counters[shared.CounterMetricName(reqMetric.ID)] + *reqMetric.Delta
+		var value = storages.Storage.GetCounters()[shared.CounterMetricName(reqMetric.ID)] + *reqMetric.Delta
 
 		*reqMetric.Delta = value
-		storages.Storage.Counters[shared.CounterMetricName(reqMetric.ID)] = value
+		if err := storages.Storage.SetCounters(map[shared.CounterMetricName]int64{
+			shared.CounterMetricName(reqMetric.ID): value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	case shared.GaugeMetricType:
-		storages.Storage.Gauges[shared.GaugeMetricName(reqMetric.ID)] = *reqMetric.Value
+		if err := storages.Storage.SetGauges(map[shared.GaugeMetricName]float64{
+			shared.GaugeMetricName(reqMetric.ID): *reqMetric.Value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
 	}
 
-	if storages.ToSaveMetricsAsync {
-		if err := storages.Storage.StoreMetrics(); err != nil {
+	if storages.Storage.GetToSaveMetricsAsync() {
+		if err := storages.Storage.WriteMetrics(); err != nil {
 			logger.Log.Error(err.Error())
 		}
 	}
@@ -82,7 +92,12 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		storages.Storage.Counters[shared.CounterMetricName(name)] += value
+		if err := storages.Storage.SetCounters(map[shared.CounterMetricName]int64{
+			shared.CounterMetricName(name): storages.Storage.GetCounters()[shared.CounterMetricName(name)] + value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	case shared.GaugeMetricType:
 		value, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
@@ -90,7 +105,12 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		storages.Storage.Gauges[shared.GaugeMetricName(name)] = value
+		if err := storages.Storage.SetGauges(map[shared.GaugeMetricName]float64{
+			shared.GaugeMetricName(name): value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
