@@ -114,13 +114,14 @@ func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 }
 
 func Ping(w http.ResponseWriter, r *http.Request) {
-	//storage, ok := storages.Storage.(*storages.DBStorage)
-	//if !ok {
-	//	http.Error(w, "Not implemented", http.StatusNotImplemented)
-	//}
-	//if err := storage.Connection.Ping(); err != nil {
-	//	http.Error(w, "DB storage ping error", http.StatusInternalServerError)
-	//	return
-	//}
+	storage, ok := storages.Storage.(*storages.DBStorage)
+	if !ok {
+		http.Error(w, "Not implemented", http.StatusNotImplemented)
+		return
+	}
+	if err := storage.Connection.Ping(); err != nil {
+		http.Error(w, "DB storage ping error", http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }

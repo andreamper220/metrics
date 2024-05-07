@@ -35,7 +35,7 @@ func MakeStorage() error {
 	if Config.DatabaseDSN != "" {
 		conn, err := sql.Open("pgx", Config.DatabaseDSN)
 		if err == nil {
-			storages.Storage = storages.NewDbStorage(conn)
+			storages.Storage = storages.NewDBStorage(conn)
 		}
 	} else if Config.FileStoragePath != "" {
 		storages.Storage = storages.NewFileStorage(Config.FileStoragePath, Config.StoreInterval == 0)

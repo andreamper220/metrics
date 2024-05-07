@@ -7,7 +7,7 @@ type DBStorage struct {
 	Connection *sql.DB
 }
 
-func NewDbStorage(conn *sql.DB) *DBStorage {
+func NewDBStorage(conn *sql.DB) *DBStorage {
 	return &DBStorage{
 		Connection: conn,
 	}
