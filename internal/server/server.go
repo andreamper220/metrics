@@ -1,10 +1,12 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/handlers"
@@ -17,6 +19,7 @@ func MakeRouter() *chi.Mux {
 	r.Route(`/`, func(r chi.Router) {
 		r.Get(`/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetrics)))
 		r.Post(`/value/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetric)))
+		r.Get(`/ping/`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))
 	})
 	r.Post(`/update/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric)))
 
@@ -30,7 +33,10 @@ func MakeRouter() *chi.Mux {
 func MakeStorage() error {
 	// choose metrics storage
 	if Config.DatabaseDSN != "" {
-
+		conn, err := sql.Open("pgx", Config.DatabaseDSN)
+		if err == nil {
+			storages.Storage = storages.NewDbStorage(conn)
+		}
 	} else if Config.FileStoragePath != "" {
 		storages.Storage = storages.NewFileStorage(Config.FileStoragePath, Config.StoreInterval == 0)
 		// to restore metrics from file

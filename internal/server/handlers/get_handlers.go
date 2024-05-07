@@ -112,3 +112,11 @@ func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+func Ping(w http.ResponseWriter, r *http.Request) {
+	if storages.Storage == nil {
+		http.Error(w, "DB storage not created", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
