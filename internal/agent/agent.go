@@ -54,6 +54,7 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 			return nil
 		},
 		retry.Attempts(3),
+		retry.Delay(time.Second),
 		retry.DelayType(func(n uint, err error, config *retry.Config) time.Duration {
 			return time.Duration(1+2*(n-1)) * time.Second
 		}),
