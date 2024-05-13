@@ -47,77 +47,11 @@ func NewDBStorage(conn *sql.DB) (*DBStorage, error) {
 }
 
 func (dbs *DBStorage) WriteMetrics() error {
-	ctx := context.Background()
-
-	// TODO in separate function
-	if len(dbs.metrics.counters) > 0 {
-		sqlVarNumber := 1
-		sqlString := "INSERT INTO metrics_counter (id, value) VALUES "
-		sqlVars := make([]any, len(dbs.metrics.counters)*2)
-		for name, value := range dbs.metrics.counters {
-			sqlString += "($" + strconv.Itoa(sqlVarNumber) + ", $" + strconv.Itoa(sqlVarNumber+1) + "),"
-			sqlVars[sqlVarNumber-1] = name
-			sqlVars[sqlVarNumber] = value
-			sqlVarNumber += 2
-		}
-		sqlString = sqlString[0 : len(sqlString)-1]
-		sqlString += " ON CONFLICT (id) DO UPDATE SET value = excluded.value;"
-
-		err := retry.Do(
-			func() error {
-				_, err := dbs.Connection.ExecContext(ctx, sqlString, sqlVars...)
-				if err != nil {
-					var pgErr *pgconn.PgError
-					if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-						return err
-					} else if err != nil {
-						return retry.Unrecoverable(err)
-					}
-				}
-				return nil
-			},
-			retry.Attempts(3),
-			retry.Delay(time.Second),
-			retry.DelayType(retry.BackOffDelay),
-		)
-		if err != nil {
-			return err
-		}
+	if err := insertMetrics(context.Background(), dbs.Connection, dbs.metrics.counters, "metrics_counter"); err != nil {
+		return err
 	}
-
-	if len(dbs.metrics.gauges) > 0 {
-		sqlVarNumber := 1
-		sqlString := "INSERT INTO metrics_gauge (id, value) VALUES "
-		sqlVars := make([]any, len(dbs.metrics.gauges)*2)
-		for name, value := range dbs.metrics.gauges {
-			sqlString += "($" + strconv.Itoa(sqlVarNumber) + ", $" + strconv.Itoa(sqlVarNumber+1) + "),"
-			sqlVars[sqlVarNumber-1] = name
-			sqlVars[sqlVarNumber] = value
-			sqlVarNumber += 2
-		}
-		sqlString = sqlString[0 : len(sqlString)-1]
-		sqlString += " ON CONFLICT (id) DO UPDATE SET value = excluded.value;"
-
-		err := retry.Do(
-			func() error {
-				_, err := dbs.Connection.ExecContext(ctx, sqlString, sqlVars...)
-				if err != nil {
-					var pgErr *pgconn.PgError
-					if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-						return err
-					} else if err != nil {
-						return retry.Unrecoverable(err)
-					}
-				}
-				return nil
-			},
-			retry.Attempts(3),
-			retry.Delay(time.Second),
-			retry.DelayType(retry.BackOffDelay),
-		)
-		if err != nil {
-			return err
-		}
+	if err := insertMetrics(context.Background(), dbs.Connection, dbs.metrics.gauges, "metrics_gauge"); err != nil {
+		return err
 	}
 
 	return nil
@@ -165,6 +99,47 @@ func (dbs *DBStorage) ReadMetrics() error {
 	}
 	if err = gaugeRows.Err(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func insertMetrics[K shared.CounterMetricName | shared.GaugeMetricName, V int64 | float64](
+	ctx context.Context, conn *sql.DB, metrics map[K]V, tableName string,
+) error {
+	if len(metrics) > 0 {
+		sqlVarNumber := 1
+		sqlString := "INSERT INTO " + tableName + " (id, value) VALUES "
+		sqlVars := make([]any, len(metrics)*2)
+		for name, value := range metrics {
+			sqlString += "($" + strconv.Itoa(sqlVarNumber) + ", $" + strconv.Itoa(sqlVarNumber+1) + "),"
+			sqlVars[sqlVarNumber-1] = name
+			sqlVars[sqlVarNumber] = value
+			sqlVarNumber += 2
+		}
+		sqlString = sqlString[0 : len(sqlString)-1]
+		sqlString += " ON CONFLICT (id) DO UPDATE SET value = excluded.value;"
+
+		err := retry.Do(
+			func() error {
+				_, err := conn.ExecContext(ctx, sqlString, sqlVars...)
+				if err != nil {
+					var pgErr *pgconn.PgError
+					if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+						return err
+					} else {
+						return retry.Unrecoverable(err)
+					}
+				}
+				return nil
+			},
+			retry.Attempts(3),
+			retry.Delay(time.Second),
+			retry.DelayType(retry.BackOffDelay),
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
