@@ -3,8 +3,15 @@ package storages
 import (
 	"context"
 	"database/sql"
-	"github.com/andreamper220/metrics.git/internal/shared"
+	"errors"
 	"strconv"
+	"time"
+
+	"github.com/avast/retry-go"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 type DBStorage struct {
@@ -42,6 +49,7 @@ func NewDBStorage(conn *sql.DB) (*DBStorage, error) {
 func (dbs *DBStorage) WriteMetrics() error {
 	ctx := context.Background()
 
+	// TODO in separate function
 	if len(dbs.metrics.counters) > 0 {
 		sqlVarNumber := 1
 		sqlString := "INSERT INTO metrics_counter (id, value) VALUES "
@@ -55,7 +63,23 @@ func (dbs *DBStorage) WriteMetrics() error {
 		sqlString = sqlString[0 : len(sqlString)-1]
 		sqlString += " ON CONFLICT (id) DO UPDATE SET value = excluded.value;"
 
-		_, err := dbs.Connection.ExecContext(ctx, sqlString, sqlVars...)
+		err := retry.Do(
+			func() error {
+				_, err := dbs.Connection.ExecContext(ctx, sqlString, sqlVars...)
+				if err != nil {
+					var pgErr *pgconn.PgError
+					if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+						return err
+					} else if err != nil {
+						return retry.Unrecoverable(err)
+					}
+				}
+				return nil
+			},
+			retry.Attempts(3),
+			retry.Delay(time.Second),
+			retry.DelayType(retry.BackOffDelay),
+		)
 		if err != nil {
 			return err
 		}
@@ -74,7 +98,23 @@ func (dbs *DBStorage) WriteMetrics() error {
 		sqlString = sqlString[0 : len(sqlString)-1]
 		sqlString += " ON CONFLICT (id) DO UPDATE SET value = excluded.value;"
 
-		_, err := dbs.Connection.ExecContext(ctx, sqlString, sqlVars...)
+		err := retry.Do(
+			func() error {
+				_, err := dbs.Connection.ExecContext(ctx, sqlString, sqlVars...)
+				if err != nil {
+					var pgErr *pgconn.PgError
+					if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+						return err
+					} else if err != nil {
+						return retry.Unrecoverable(err)
+					}
+				}
+				return nil
+			},
+			retry.Attempts(3),
+			retry.Delay(time.Second),
+			retry.DelayType(retry.BackOffDelay),
+		)
 		if err != nil {
 			return err
 		}
