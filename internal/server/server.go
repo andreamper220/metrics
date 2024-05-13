@@ -20,9 +20,10 @@ func MakeRouter() *chi.Mux {
 	r.Route(`/`, func(r chi.Router) {
 		r.Get(`/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetrics)))
 		r.Post(`/value/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetric)))
-		r.Get(`/ping/`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))
 	})
 	r.Post(`/update/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric)))
+	r.Post(`/updates/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetrics)))
+	r.Get(`/ping`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))
 
 	// deprecated
 	r.Get(`/value/{type}/{name}`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetricOld)))
