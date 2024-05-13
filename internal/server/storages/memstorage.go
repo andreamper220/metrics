@@ -6,7 +6,7 @@ type MemStorage struct {
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		AbstractStorage: NewAbstractStorage(),
+		AbstractStorage: NewAbstractStorage(true),
 	}
 }
 

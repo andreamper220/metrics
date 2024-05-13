@@ -2,6 +2,7 @@ package server
 
 import (
 	"database/sql"
+	"errors"
 	"net/http"
 	"time"
 
@@ -35,7 +36,10 @@ func MakeStorage() error {
 	if Config.DatabaseDSN != "" {
 		conn, err := sql.Open("pgx", Config.DatabaseDSN)
 		if err == nil {
-			storages.Storage = storages.NewDBStorage(conn)
+			storages.Storage, err = storages.NewDBStorage(conn)
+			if err != nil {
+				return err
+			}
 		}
 	} else if Config.FileStoragePath != "" {
 		storages.Storage = storages.NewFileStorage(Config.FileStoragePath, Config.StoreInterval == 0)
@@ -76,6 +80,13 @@ func Run() error {
 	}
 	if err := MakeStorage(); err != nil {
 		return err
+	}
+	if Config.DatabaseDSN != "" {
+		storage, ok := storages.Storage.(*storages.DBStorage)
+		if !ok {
+			return errors.New("DB storage not created")
+		}
+		defer storage.Connection.Close()
 	}
 
 	return http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())

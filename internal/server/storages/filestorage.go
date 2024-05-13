@@ -18,9 +18,8 @@ type FileStorage struct {
 
 func NewFileStorage(fileStoragePath string, toSaveMetricsAsync bool) *FileStorage {
 	return &FileStorage{
-		AbstractStorage:    NewAbstractStorage(),
-		FileStoragePath:    fileStoragePath,
-		ToSaveMetricsAsync: toSaveMetricsAsync,
+		AbstractStorage: NewAbstractStorage(toSaveMetricsAsync),
+		FileStoragePath: fileStoragePath,
 	}
 }
 

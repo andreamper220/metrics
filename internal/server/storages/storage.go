@@ -50,11 +50,12 @@ func (as *AbstractStorage) SetToSaveMetricsAsync(toSaveMetricsAsync bool) error 
 	as.toSaveMetricsAsync = toSaveMetricsAsync
 	return nil
 }
-func NewAbstractStorage() *AbstractStorage {
+func NewAbstractStorage(toSaveMetricsAsync bool) *AbstractStorage {
 	return &AbstractStorage{
 		metrics: metrics{
 			counters: make(map[shared.CounterMetricName]int64),
 			gauges:   make(map[shared.GaugeMetricName]float64),
 		},
+		toSaveMetricsAsync: toSaveMetricsAsync,
 	}
 }

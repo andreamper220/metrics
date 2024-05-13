@@ -116,5 +116,11 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if storages.Storage.GetToSaveMetricsAsync() {
+		if err := storages.Storage.WriteMetrics(); err != nil {
+			logger.Log.Error(err.Error())
+		}
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
