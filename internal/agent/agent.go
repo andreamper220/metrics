@@ -16,9 +16,8 @@ import (
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
-func SendMetric(url string, metric shared.Metric, client *http.Client) error {
-	requestURL := url + "/update/"
-	body, err := json.Marshal(metric)
+func Send(url string, bodyStruct interface{}, client *http.Client) error {
+	body, err := json.Marshal(bodyStruct)
 	if err != nil {
 		return err
 	}
@@ -35,7 +34,7 @@ func SendMetric(url string, metric shared.Metric, client *http.Client) error {
 
 	err = retry.Do(
 		func() error {
-			req, _ := http.NewRequest(http.MethodPost, requestURL, &b)
+			req, _ := http.NewRequest(http.MethodPost, url, &b)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
 			res, err := client.Do(req)
@@ -83,28 +82,32 @@ func Run() error {
 		for {
 			select {
 			case <-reportTicker.C:
-				url := "http://" + Config.ServerAddress.String()
+				url := "http://" + Config.ServerAddress.String() + "/updates/"
 				client := &http.Client{
 					Timeout: 30 * time.Second,
 				}
 
+				metrics := make([]shared.Metric, len(Metrics.Gauges)+len(Metrics.Counters))
+				metricsIndex := 0
 				for name, value := range Metrics.Gauges {
-					if err := SendMetric(url, shared.Metric{
+					metrics[metricsIndex] = shared.Metric{
 						ID:    string(name),
 						MType: shared.GaugeMetricType,
 						Value: &value,
-					}, client); err != nil {
-						logger.Log.Error(err.Error())
 					}
+					metricsIndex++
 				}
 				for name, value := range Metrics.Counters {
-					if err := SendMetric(url, shared.Metric{
+					metrics[metricsIndex] = shared.Metric{
 						ID:    string(name),
 						MType: shared.CounterMetricType,
 						Delta: &value,
-					}, client); err != nil {
-						logger.Log.Error(err.Error())
 					}
+					metricsIndex++
+				}
+
+				if err := Send(url, metrics, client); err != nil {
+					logger.Log.Error(err.Error())
 				}
 			case <-blockDone:
 				reportTicker.Stop()

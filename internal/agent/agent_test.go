@@ -61,7 +61,7 @@ func TestSendMetrics(t *testing.T) {
 			srv := httptest.NewServer(r)
 			defer srv.Close()
 
-			assert.NoError(t, SendMetric(srv.URL, tt.metric, client))
+			assert.NoError(t, Send(srv.URL+"/update/", tt.metric, client))
 		})
 	}
 }
