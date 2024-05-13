@@ -120,6 +120,12 @@ func (dbs *DBStorage) ReadMetrics() error {
 		}
 		dbs.metrics.gauges[shared.GaugeMetricName(id)] = value
 	}
+	if err := counterRows.Err(); err != nil {
+		return err
+	}
+	if err = gaugeRows.Err(); err != nil {
+		return err
+	}
 
 	return nil
 }
