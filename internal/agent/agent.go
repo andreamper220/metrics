@@ -69,7 +69,7 @@ func Run() error {
 		for {
 			select {
 			case <-pollTicker.C:
-				ReadMetrics()
+				updateMetrics()
 			case <-blockDone:
 				pollTicker.Stop()
 				return
@@ -82,31 +82,7 @@ func Run() error {
 		for {
 			select {
 			case <-reportTicker.C:
-				url := "http://" + Config.ServerAddress.String() + "/updates/"
-				client := &http.Client{
-					Timeout: 30 * time.Second,
-				}
-
-				metrics := make([]shared.Metric, len(Metrics.Gauges)+len(Metrics.Counters))
-				metricsIndex := 0
-				for name, value := range Metrics.Gauges {
-					metrics[metricsIndex] = shared.Metric{
-						ID:    string(name),
-						MType: shared.GaugeMetricType,
-						Value: &value,
-					}
-					metricsIndex++
-				}
-				for name, value := range Metrics.Counters {
-					metrics[metricsIndex] = shared.Metric{
-						ID:    string(name),
-						MType: shared.CounterMetricType,
-						Delta: &value,
-					}
-					metricsIndex++
-				}
-
-				if err := Send(url, metrics, client); err != nil {
+				if err := sendMetrics(); err != nil {
 					logger.Log.Error(err.Error())
 				}
 			case <-blockDone:
@@ -119,4 +95,34 @@ func Run() error {
 	<-blockDone
 
 	return nil
+}
+
+func sendMetrics() error {
+	currentMetrics := readMetrics()
+
+	url := "http://" + Config.ServerAddress.String() + "/updates/"
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
+	metricsIndex := 0
+	for name, value := range currentMetrics.Gauges {
+		metrics[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.GaugeMetricType,
+			Value: &value,
+		}
+		metricsIndex++
+	}
+	for name, value := range currentMetrics.Counters {
+		metrics[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.CounterMetricType,
+			Delta: &value,
+		}
+		metricsIndex++
+	}
+
+	return Send(url, metrics, client)
 }

@@ -3,49 +3,62 @@ package storages
 import (
 	"context"
 	"database/sql"
-	"errors"
+	"embed"
 	"strconv"
-	"time"
 
-	"github.com/avast/retry-go"
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/pressly/goose/v3"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
+//go:embed migrations/*.sql
+var migrations embed.FS
+
 type DBStorage struct {
-	*AbstractStorage
-	Connection *sql.DB
+	metrics            metrics
+	toSaveMetricsAsync bool
+	Connection         *sql.DB
 }
 
 func NewDBStorage(conn *sql.DB) (*DBStorage, error) {
-	ctx := context.Background()
-	tx, err := conn.BeginTx(ctx, nil)
-	if err != nil {
+	goose.SetBaseFS(migrations)
+	if err := goose.SetDialect(string(goose.DialectPostgres)); err != nil {
 		return nil, err
 	}
-	defer tx.Rollback()
-
-	tx.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS metrics_counter (
-		    id varchar(128) PRIMARY KEY NOT NULL,
-		    value int NOT NULL
-		)
-	`)
-	tx.ExecContext(ctx, `
-		CREATE TABLE IF NOT EXISTS metrics_gauge (
-		    id varchar(128) PRIMARY KEY NOT NULL,
-		    value double precision NOT NULL
-		)
-	`)
+	if err := goose.Up(conn, "migrations"); err != nil {
+		return nil, err
+	}
 
 	return &DBStorage{
-		AbstractStorage: NewAbstractStorage(true),
-		Connection:      conn,
-	}, tx.Commit()
+		metrics: metrics{
+			counters: make(map[shared.CounterMetricName]int64),
+			gauges:   make(map[shared.GaugeMetricName]float64),
+		},
+		toSaveMetricsAsync: true,
+		Connection:         conn,
+	}, nil
 }
-
+func (dbs *DBStorage) GetCounters() map[shared.CounterMetricName]int64 {
+	return dbs.metrics.counters
+}
+func (dbs *DBStorage) SetCounters(counters map[shared.CounterMetricName]int64) error {
+	for name, value := range counters {
+		dbs.metrics.counters[name] = value
+	}
+	return nil
+}
+func (dbs *DBStorage) GetGauges() map[shared.GaugeMetricName]float64 {
+	return dbs.metrics.gauges
+}
+func (dbs *DBStorage) SetGauges(gauges map[shared.GaugeMetricName]float64) error {
+	for name, value := range gauges {
+		dbs.metrics.gauges[name] = value
+	}
+	return nil
+}
+func (dbs *DBStorage) GetToSaveMetricsAsync() bool {
+	return dbs.toSaveMetricsAsync
+}
 func (dbs *DBStorage) WriteMetrics() error {
 	if err := insertMetrics(context.Background(), dbs.Connection, dbs.metrics.counters, "metrics_counter"); err != nil {
 		return err
@@ -56,7 +69,6 @@ func (dbs *DBStorage) WriteMetrics() error {
 
 	return nil
 }
-
 func (dbs *DBStorage) ReadMetrics() error {
 	ctx := context.Background()
 
@@ -120,23 +132,7 @@ func insertMetrics[K shared.CounterMetricName | shared.GaugeMetricName, V int64 
 		sqlString = sqlString[0 : len(sqlString)-1]
 		sqlString += " ON CONFLICT (id) DO UPDATE SET value = excluded.value;"
 
-		err := retry.Do(
-			func() error {
-				_, err := conn.ExecContext(ctx, sqlString, sqlVars...)
-				if err != nil {
-					var pgErr *pgconn.PgError
-					if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
-						return err
-					} else {
-						return retry.Unrecoverable(err)
-					}
-				}
-				return nil
-			},
-			retry.Attempts(3),
-			retry.Delay(time.Second),
-			retry.DelayType(retry.BackOffDelay),
-		)
+		_, err := conn.ExecContext(ctx, sqlString, sqlVars...)
 		if err != nil {
 			return err
 		}

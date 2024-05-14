@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,11 @@ import (
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
+)
+
+var (
+	ErrMetricNotFound      = errors.New("not found metric ID")
+	ErrIncorrectMetricType = errors.New("incorrect metric TYPE")
 )
 
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
@@ -27,8 +33,14 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	if errMessage, errCode := processMetric(&reqMetric); errMessage != "" && errCode != 0 {
-		http.Error(w, errMessage, errCode)
+	if err := processMetric(&reqMetric); err != nil {
+		if errors.Is(err, ErrMetricNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else if errors.Is(err, ErrIncorrectMetricType) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -110,8 +122,14 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, reqMetric := range reqMetrics {
-		if errMessage, errCode := processMetric(&reqMetric); errMessage != "" && errCode != 0 {
-			http.Error(w, errMessage, errCode)
+		if err := processMetric(&reqMetric); err != nil {
+			if errors.Is(err, ErrMetricNotFound) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if errors.Is(err, ErrIncorrectMetricType) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
 			return
 		}
 	}
@@ -129,9 +147,9 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func processMetric(metric *shared.Metric) (string, int) {
+func processMetric(metric *shared.Metric) error {
 	if metric.ID == "" {
-		return "Not found metric ID.", http.StatusNotFound
+		return ErrMetricNotFound
 	}
 
 	switch metric.MType {
@@ -143,18 +161,18 @@ func processMetric(metric *shared.Metric) (string, int) {
 			shared.CounterMetricName(metric.ID): value,
 		}); err != nil {
 			logger.Log.Error(err.Error())
-			return err.Error(), http.StatusInternalServerError
+			return err
 		}
 	case shared.GaugeMetricType:
 		if err := storages.Storage.SetGauges(map[shared.GaugeMetricName]float64{
 			shared.GaugeMetricName(metric.ID): *metric.Value,
 		}); err != nil {
 			logger.Log.Error(err.Error())
-			return err.Error(), http.StatusInternalServerError
+			return err
 		}
 	default:
-		return "Incorrect metric TYPE.", http.StatusBadRequest
+		return ErrIncorrectMetricType
 	}
 
-	return "", 0
+	return nil
 }

@@ -11,20 +11,44 @@ import (
 )
 
 type FileStorage struct {
-	*AbstractStorage
-	FileStoragePath    string
-	ToSaveMetricsAsync bool
+	metrics            metrics
+	toSaveMetricsAsync bool
+	fileStoragePath    string
 }
 
 func NewFileStorage(fileStoragePath string, toSaveMetricsAsync bool) *FileStorage {
 	return &FileStorage{
-		AbstractStorage: NewAbstractStorage(toSaveMetricsAsync),
-		FileStoragePath: fileStoragePath,
+		metrics: metrics{
+			counters: make(map[shared.CounterMetricName]int64),
+			gauges:   make(map[shared.GaugeMetricName]float64),
+		},
+		toSaveMetricsAsync: toSaveMetricsAsync,
+		fileStoragePath:    fileStoragePath,
 	}
 }
-
+func (fs *FileStorage) GetCounters() map[shared.CounterMetricName]int64 {
+	return fs.metrics.counters
+}
+func (fs *FileStorage) SetCounters(counters map[shared.CounterMetricName]int64) error {
+	for name, value := range counters {
+		fs.metrics.counters[name] = value
+	}
+	return nil
+}
+func (fs *FileStorage) GetGauges() map[shared.GaugeMetricName]float64 {
+	return fs.metrics.gauges
+}
+func (fs *FileStorage) SetGauges(gauges map[shared.GaugeMetricName]float64) error {
+	for name, value := range gauges {
+		fs.metrics.gauges[name] = value
+	}
+	return nil
+}
+func (fs *FileStorage) GetToSaveMetricsAsync() bool {
+	return fs.toSaveMetricsAsync
+}
 func (fs *FileStorage) WriteMetrics() error {
-	file, err := os.OpenFile(fs.FileStoragePath, os.O_WRONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(fs.fileStoragePath, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
@@ -59,9 +83,8 @@ func (fs *FileStorage) WriteMetrics() error {
 
 	return err
 }
-
 func (fs *FileStorage) ReadMetrics() error {
-	file, err := os.OpenFile(fs.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
+	file, err := os.OpenFile(fs.fileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}

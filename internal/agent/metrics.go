@@ -7,21 +7,21 @@ import (
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
-type MetricsStruct struct {
+type metricsStruct struct {
 	Counters map[shared.CounterMetricName]int64
 	Gauges   map[shared.GaugeMetricName]float64
 }
 
-var Metrics = &MetricsStruct{
+var metrics = &metricsStruct{
 	Counters: make(map[shared.CounterMetricName]int64),
 	Gauges:   make(map[shared.GaugeMetricName]float64),
 }
 
-func ReadMetrics() {
+func updateMetrics() {
 	var mstats runtime.MemStats
 	runtime.ReadMemStats(&mstats)
 
-	Metrics.Gauges = map[shared.GaugeMetricName]float64{
+	metrics.Gauges = map[shared.GaugeMetricName]float64{
 		shared.Alloc:         float64(mstats.Alloc),
 		shared.BuckHashSys:   float64(mstats.BuckHashSys),
 		shared.Frees:         float64(mstats.Frees),
@@ -51,5 +51,9 @@ func ReadMetrics() {
 		shared.Sys:           float64(mstats.Sys),
 		shared.TotalAlloc:    float64(mstats.TotalAlloc),
 	}
-	Metrics.Counters[shared.PollCount] = 1
+	metrics.Counters[shared.PollCount] = 1
+}
+
+func readMetrics() *metricsStruct {
+	return metrics
 }
