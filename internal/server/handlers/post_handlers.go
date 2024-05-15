@@ -138,9 +138,9 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		isExisted := false
-		for _, resMetric := range resMetrics {
+		for key, resMetric := range resMetrics {
 			if resMetric.ID == reqMetric.ID {
-				resMetric = reqMetric
+				resMetrics[key] = reqMetric
 				isExisted = true
 			}
 		}
