@@ -120,7 +120,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
-	var reqMetrics shared.Metrics
+	var reqMetrics, resMetrics shared.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&reqMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -137,11 +137,21 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 			}
 			return
 		}
+		isExisted := false
+		for _, resMetric := range resMetrics {
+			if resMetric.ID == reqMetric.ID {
+				resMetric = reqMetric
+				isExisted = true
+			}
+		}
+		if !isExisted {
+			resMetrics = append(resMetrics, reqMetric)
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(reqMetrics); err != nil {
+	if err := json.NewEncoder(w).Encode(resMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
