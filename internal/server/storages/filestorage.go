@@ -58,7 +58,6 @@ func (fs *FileStorage) AddCounter(metric CounterMetric) error {
 	isExisted := false
 	for _, counter := range fs.metrics.counters {
 		if counter.Name == metric.Name {
-			counter.Value = metric.Value
 			isExisted = true
 			break
 		}
@@ -95,7 +94,6 @@ func (fs *FileStorage) AddGauge(metric GaugeMetric) error {
 	isExisted := false
 	for _, gauge := range fs.metrics.gauges {
 		if gauge.Name == metric.Name {
-			gauge.Value = metric.Value
 			isExisted = true
 			break
 		}

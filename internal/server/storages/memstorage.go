@@ -16,7 +16,6 @@ func (ms *MemStorage) AddCounter(metric CounterMetric) error {
 	isExisted := false
 	for _, counter := range ms.metrics.counters {
 		if counter.Name == metric.Name {
-			counter.Value = metric.Value
 			isExisted = true
 			break
 		}
@@ -44,7 +43,6 @@ func (ms *MemStorage) AddGauge(metric GaugeMetric) error {
 	isExisted := false
 	for _, gauge := range ms.metrics.gauges {
 		if gauge.Name == metric.Name {
-			gauge.Value = metric.Value
 			isExisted = true
 			break
 		}
