@@ -3,11 +3,9 @@ package server
 import (
 	"database/sql"
 	"errors"
-	"net/http"
-	"time"
-
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"net/http"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/handlers"
@@ -32,7 +30,7 @@ func MakeRouter() *chi.Mux {
 	return r
 }
 
-func MakeStorage() error {
+func MakeStorage(blockDone chan bool) error {
 	// choose metrics storage
 	if Config.DatabaseDSN != "" {
 		conn, err := sql.Open("pgx", Config.DatabaseDSN)
@@ -43,30 +41,15 @@ func MakeStorage() error {
 			}
 		}
 	} else if Config.FileStoragePath != "" {
-		storages.Storage = storages.NewFileStorage(Config.FileStoragePath, Config.StoreInterval == 0)
-		// to restore metrics from file
-		if Config.Restore {
-			if err := storages.Storage.ReadMetrics(); err != nil {
-				return err
-			}
-		}
-		// to store metrics to file
-		blockDone := make(chan bool)
-		if Config.StoreInterval > 0 {
-			storeTicker := time.NewTicker(time.Duration(Config.StoreInterval) * time.Second)
-			go func() {
-				for {
-					select {
-					case <-storeTicker.C:
-						if err := storages.Storage.WriteMetrics(); err != nil {
-							logger.Log.Error(err.Error())
-						}
-					case <-blockDone:
-						storeTicker.Stop()
-						return
-					}
-				}
-			}()
+		var err error
+		storages.Storage, err = storages.NewFileStorage(
+			Config.FileStoragePath,
+			Config.StoreInterval,
+			Config.Restore,
+			blockDone,
+		)
+		if err != nil {
+			return err
 		}
 	} else {
 		storages.Storage = storages.NewMemStorage()
@@ -79,7 +62,8 @@ func Run() error {
 	if err := logger.Initialize(); err != nil {
 		return err
 	}
-	if err := MakeStorage(); err != nil {
+	blockDone := make(chan bool)
+	if err := MakeStorage(blockDone); err != nil {
 		return err
 	}
 	if Config.DatabaseDSN != "" {
@@ -90,5 +74,7 @@ func Run() error {
 		defer storage.Connection.Close()
 	}
 
-	return http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
+	err := http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
+	<-blockDone
+	return err
 }

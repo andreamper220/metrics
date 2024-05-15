@@ -5,16 +5,26 @@ import "github.com/andreamper220/metrics.git/internal/shared"
 var Storage StorageInterface
 
 type StorageInterface interface {
-	WriteMetrics() error
-	ReadMetrics() error
-	GetCounters() map[shared.CounterMetricName]int64
-	SetCounters(map[shared.CounterMetricName]int64) error
-	GetGauges() map[shared.GaugeMetricName]float64
-	SetGauges(map[shared.GaugeMetricName]float64) error
-	GetToSaveMetricsAsync() bool
+	GetCounters() ([]CounterMetric, error)
+	AddCounter(CounterMetric) error
+	AddCounters([]CounterMetric) error
+	GetGauges() ([]GaugeMetric, error)
+	AddGauge(GaugeMetric) error
+	AddGauges([]GaugeMetric) error
+	GetMetrics() (Metrics, error)
 }
 
-type metrics struct {
-	counters map[shared.CounterMetricName]int64
-	gauges   map[shared.GaugeMetricName]float64
+type CounterMetric struct {
+	Name  shared.CounterMetricName
+	Value int64
+}
+
+type GaugeMetric struct {
+	Name  shared.GaugeMetricName
+	Value float64
+}
+
+type Metrics struct {
+	counters []CounterMetric
+	gauges   []GaugeMetric
 }

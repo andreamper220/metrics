@@ -1,45 +1,70 @@
 package storages
 
-import "github.com/andreamper220/metrics.git/internal/shared"
-
 type MemStorage struct {
-	metrics            metrics
-	toSaveMetricsAsync bool
+	metrics Metrics
 }
 
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		metrics: metrics{
-			counters: make(map[shared.CounterMetricName]int64),
-			gauges:   make(map[shared.GaugeMetricName]float64),
-		},
-		toSaveMetricsAsync: true,
+		Metrics{},
 	}
 }
-func (ms *MemStorage) GetCounters() map[shared.CounterMetricName]int64 {
-	return ms.metrics.counters
+func (ms *MemStorage) GetCounters() ([]CounterMetric, error) {
+	return ms.metrics.counters, nil
 }
-func (ms *MemStorage) SetCounters(counters map[shared.CounterMetricName]int64) error {
-	for name, value := range counters {
-		ms.metrics.counters[name] = value
+func (ms *MemStorage) AddCounter(metric CounterMetric) error {
+	isExisted := false
+	for _, counter := range ms.metrics.counters {
+		if counter.Name == metric.Name {
+			counter.Value = metric.Value
+			isExisted = true
+			break
+		}
 	}
-	return nil
-}
-func (ms *MemStorage) GetGauges() map[shared.GaugeMetricName]float64 {
-	return ms.metrics.gauges
-}
-func (ms *MemStorage) SetGauges(gauges map[shared.GaugeMetricName]float64) error {
-	for name, value := range gauges {
-		ms.metrics.gauges[name] = value
+	if !isExisted {
+		ms.metrics.counters = append(ms.metrics.counters, CounterMetric{
+			Name:  metric.Name,
+			Value: metric.Value,
+		})
 	}
+
 	return nil
 }
-func (ms *MemStorage) GetToSaveMetricsAsync() bool {
-	return ms.toSaveMetricsAsync
+func (ms *MemStorage) AddCounters(metrics []CounterMetric) error {
+	var err error
+	for _, metric := range metrics {
+		err = ms.AddCounter(metric)
+	}
+	return err
 }
-func (ms *MemStorage) WriteMetrics() error {
+func (ms *MemStorage) GetGauges() ([]GaugeMetric, error) {
+	return ms.metrics.gauges, nil
+}
+func (ms *MemStorage) AddGauge(metric GaugeMetric) error {
+	isExisted := false
+	for _, gauge := range ms.metrics.gauges {
+		if gauge.Name == metric.Name {
+			gauge.Value = metric.Value
+			isExisted = true
+			break
+		}
+	}
+	if !isExisted {
+		ms.metrics.gauges = append(ms.metrics.gauges, GaugeMetric{
+			Name:  metric.Name,
+			Value: metric.Value,
+		})
+	}
+
 	return nil
 }
-func (ms *MemStorage) ReadMetrics() error {
-	return nil
+func (ms *MemStorage) AddGauges(metrics []GaugeMetric) error {
+	var err error
+	for _, metric := range metrics {
+		err = ms.AddGauge(metric)
+	}
+	return err
+}
+func (ms *MemStorage) GetMetrics() (Metrics, error) {
+	return ms.metrics, nil
 }

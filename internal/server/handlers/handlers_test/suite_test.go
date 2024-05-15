@@ -19,7 +19,7 @@ func (s *HandlerTestSuite) SetupTest() {
 	if err := logger.Initialize(); err != nil {
 		s.Fail(err.Error())
 	}
-	if err := server.MakeStorage(); err != nil {
+	if err := server.MakeStorage(make(chan bool)); err != nil {
 		s.Fail(err.Error())
 	}
 

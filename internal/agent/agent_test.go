@@ -56,7 +56,7 @@ func TestSendMetrics(t *testing.T) {
 			if err := logger.Initialize(); err != nil {
 				t.Fatal(err.Error())
 			}
-			if err := server.MakeStorage(); err != nil {
+			if err := server.MakeStorage(make(chan bool)); err != nil {
 				t.Fatal(err.Error())
 			}
 
@@ -77,9 +77,9 @@ func TestSendMetrics(t *testing.T) {
 			require.NoError(t, json.NewDecoder(res.Body).Decode(&resMetric))
 			switch tt.metric.MType {
 			case shared.CounterMetricType:
-				assert.Equal(t, tt.metric.Delta, resMetric.Delta)
+				assert.Equal(t, *tt.metric.Delta, *resMetric.Delta)
 			case shared.GaugeMetricType:
-				assert.Equal(t, tt.metric.Value, resMetric.Value)
+				assert.Equal(t, *tt.metric.Value, *resMetric.Value)
 			}
 			require.NoError(t, res.Body.Close())
 		})

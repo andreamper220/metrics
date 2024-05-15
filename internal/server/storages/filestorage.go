@@ -5,47 +5,128 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"time"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 type FileStorage struct {
-	metrics            metrics
-	toSaveMetricsAsync bool
+	metrics            Metrics
 	fileStoragePath    string
+	toSaveMetricsAsync bool
 }
 
-func NewFileStorage(fileStoragePath string, toSaveMetricsAsync bool) *FileStorage {
-	return &FileStorage{
-		metrics: metrics{
-			counters: make(map[shared.CounterMetricName]int64),
-			gauges:   make(map[shared.GaugeMetricName]float64),
-		},
-		toSaveMetricsAsync: toSaveMetricsAsync,
+func NewFileStorage(
+	fileStoragePath string, storeInterval int, toRestore bool, blockDone chan bool,
+) (*FileStorage, error) {
+	fs := &FileStorage{
+		metrics:            Metrics{},
 		fileStoragePath:    fileStoragePath,
+		toSaveMetricsAsync: storeInterval == 0,
 	}
-}
-func (fs *FileStorage) GetCounters() map[shared.CounterMetricName]int64 {
-	return fs.metrics.counters
-}
-func (fs *FileStorage) SetCounters(counters map[shared.CounterMetricName]int64) error {
-	for name, value := range counters {
-		fs.metrics.counters[name] = value
+
+	// to restore metrics from file
+	if toRestore {
+		if err := fs.ReadMetrics(); err != nil {
+			return nil, err
+		}
 	}
+	// to store metrics to file
+	if storeInterval > 0 {
+		storeTicker := time.NewTicker(time.Duration(storeInterval) * time.Second)
+		go func() {
+			for {
+				select {
+				case <-storeTicker.C:
+					if err := fs.WriteMetrics(); err != nil {
+						logger.Log.Error(err.Error())
+					}
+				case <-blockDone:
+					storeTicker.Stop()
+					return
+				}
+			}
+		}()
+	}
+	return fs, nil
+}
+func (fs *FileStorage) GetCounters() ([]CounterMetric, error) {
+	return fs.metrics.counters, nil
+}
+func (fs *FileStorage) AddCounter(metric CounterMetric) error {
+	isExisted := false
+	for _, counter := range fs.metrics.counters {
+		if counter.Name == metric.Name {
+			counter.Value = metric.Value
+			isExisted = true
+			break
+		}
+	}
+	if !isExisted {
+		fs.metrics.counters = append(fs.metrics.counters, CounterMetric{
+			Name:  metric.Name,
+			Value: metric.Value,
+		})
+	}
+
+	if fs.toSaveMetricsAsync {
+		return fs.WriteMetrics()
+	}
+
 	return nil
 }
-func (fs *FileStorage) GetGauges() map[shared.GaugeMetricName]float64 {
-	return fs.metrics.gauges
-}
-func (fs *FileStorage) SetGauges(gauges map[shared.GaugeMetricName]float64) error {
-	for name, value := range gauges {
-		fs.metrics.gauges[name] = value
+func (fs *FileStorage) AddCounters(metrics []CounterMetric) error {
+	var err error
+	for _, metric := range metrics {
+		err = fs.AddCounter(metric)
 	}
+
+	if fs.toSaveMetricsAsync {
+		return fs.WriteMetrics()
+	}
+
+	return err
+}
+func (fs *FileStorage) GetGauges() ([]GaugeMetric, error) {
+	return fs.metrics.gauges, nil
+}
+func (fs *FileStorage) AddGauge(metric GaugeMetric) error {
+	isExisted := false
+	for _, gauge := range fs.metrics.gauges {
+		if gauge.Name == metric.Name {
+			gauge.Value = metric.Value
+			isExisted = true
+			break
+		}
+	}
+	if !isExisted {
+		fs.metrics.gauges = append(fs.metrics.gauges, GaugeMetric{
+			Name:  metric.Name,
+			Value: metric.Value,
+		})
+	}
+
+	if fs.toSaveMetricsAsync {
+		return fs.WriteMetrics()
+	}
+
 	return nil
 }
-func (fs *FileStorage) GetToSaveMetricsAsync() bool {
-	return fs.toSaveMetricsAsync
+func (fs *FileStorage) AddGauges(metrics []GaugeMetric) error {
+	var err error
+	for _, metric := range metrics {
+		err = fs.AddGauge(metric)
+	}
+
+	if fs.toSaveMetricsAsync {
+		return fs.WriteMetrics()
+	}
+
+	return err
+}
+func (fs *FileStorage) GetMetrics() (Metrics, error) {
+	return fs.metrics, nil
 }
 func (fs *FileStorage) WriteMetrics() error {
 	file, err := os.OpenFile(fs.fileStoragePath, os.O_WRONLY|os.O_CREATE, 0666)
@@ -57,22 +138,22 @@ func (fs *FileStorage) WriteMetrics() error {
 	}()
 
 	data := make([]byte, 0)
-	for name, value := range fs.metrics.counters {
+	for _, counterMetric := range fs.metrics.counters {
 		metric := &shared.Metric{
-			ID:    string(name),
+			ID:    string(counterMetric.Name),
 			MType: shared.CounterMetricType,
-			Delta: &value,
+			Delta: &counterMetric.Value,
 		}
 		metricData, _ := json.Marshal(&metric)
 		metricData = append(metricData, '\n')
 		data = append(data, metricData...)
 	}
 
-	for name, value := range fs.metrics.gauges {
+	for _, gaugeMetric := range fs.metrics.gauges {
 		metric := &shared.Metric{
-			ID:    string(name),
+			ID:    string(gaugeMetric.Name),
 			MType: shared.GaugeMetricType,
-			Value: &value,
+			Value: &gaugeMetric.Value,
 		}
 		metricData, _ := json.Marshal(&metric)
 		metricData = append(metricData, '\n')
@@ -107,9 +188,15 @@ func (fs *FileStorage) ReadMetrics() error {
 
 		switch metric.MType {
 		case shared.CounterMetricType:
-			fs.metrics.counters[shared.CounterMetricName(metric.ID)] = *metric.Delta
+			fs.AddCounter(CounterMetric{
+				Name:  shared.CounterMetricName(metric.ID),
+				Value: *metric.Delta,
+			})
 		case shared.GaugeMetricType:
-			fs.metrics.gauges[shared.GaugeMetricName(metric.ID)] = *metric.Value
+			fs.AddGauge(GaugeMetric{
+				Name:  shared.GaugeMetricName(metric.ID),
+				Value: *metric.Value,
+			})
 		default:
 			logger.Log.Fatalf("incorrect metric: %s", metric.ID)
 		}
