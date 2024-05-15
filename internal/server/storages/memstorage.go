@@ -14,17 +14,15 @@ func (ms *MemStorage) GetCounters() ([]CounterMetric, error) {
 }
 func (ms *MemStorage) AddCounter(metric CounterMetric) error {
 	isExisted := false
-	for _, counter := range ms.metrics.counters {
+	for key, counter := range ms.metrics.counters {
 		if counter.Name == metric.Name {
+			ms.metrics.counters[key].Value = metric.Value
 			isExisted = true
 			break
 		}
 	}
 	if !isExisted {
-		ms.metrics.counters = append(ms.metrics.counters, CounterMetric{
-			Name:  metric.Name,
-			Value: metric.Value,
-		})
+		ms.metrics.counters = append(ms.metrics.counters, metric)
 	}
 
 	return nil
@@ -41,17 +39,15 @@ func (ms *MemStorage) GetGauges() ([]GaugeMetric, error) {
 }
 func (ms *MemStorage) AddGauge(metric GaugeMetric) error {
 	isExisted := false
-	for _, gauge := range ms.metrics.gauges {
+	for key, gauge := range ms.metrics.gauges {
 		if gauge.Name == metric.Name {
+			ms.metrics.gauges[key].Value = metric.Value
 			isExisted = true
 			break
 		}
 	}
 	if !isExisted {
-		ms.metrics.gauges = append(ms.metrics.gauges, GaugeMetric{
-			Name:  metric.Name,
-			Value: metric.Value,
-		})
+		ms.metrics.gauges = append(ms.metrics.gauges, metric)
 	}
 
 	return nil

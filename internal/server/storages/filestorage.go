@@ -56,17 +56,15 @@ func (fs *FileStorage) GetCounters() ([]CounterMetric, error) {
 }
 func (fs *FileStorage) AddCounter(metric CounterMetric) error {
 	isExisted := false
-	for _, counter := range fs.metrics.counters {
+	for key, counter := range fs.metrics.counters {
 		if counter.Name == metric.Name {
+			fs.metrics.counters[key].Value = metric.Value
 			isExisted = true
 			break
 		}
 	}
 	if !isExisted {
-		fs.metrics.counters = append(fs.metrics.counters, CounterMetric{
-			Name:  metric.Name,
-			Value: metric.Value,
-		})
+		fs.metrics.counters = append(fs.metrics.counters, metric)
 	}
 
 	if fs.toSaveMetricsAsync {
@@ -92,17 +90,15 @@ func (fs *FileStorage) GetGauges() ([]GaugeMetric, error) {
 }
 func (fs *FileStorage) AddGauge(metric GaugeMetric) error {
 	isExisted := false
-	for _, gauge := range fs.metrics.gauges {
+	for key, gauge := range fs.metrics.gauges {
 		if gauge.Name == metric.Name {
+			fs.metrics.gauges[key].Value = metric.Value
 			isExisted = true
 			break
 		}
 	}
 	if !isExisted {
-		fs.metrics.gauges = append(fs.metrics.gauges, GaugeMetric{
-			Name:  metric.Name,
-			Value: metric.Value,
-		})
+		fs.metrics.gauges = append(fs.metrics.gauges, metric)
 	}
 
 	if fs.toSaveMetricsAsync {
