@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -53,12 +56,32 @@ func TestSendMetrics(t *testing.T) {
 			if err := logger.Initialize(); err != nil {
 				t.Fatal(err.Error())
 			}
+			if err := server.MakeStorage(make(chan bool)); err != nil {
+				t.Fatal(err.Error())
+			}
 
 			r := server.MakeRouter()
 			srv := httptest.NewServer(r)
 			defer srv.Close()
 
-			assert.NoError(t, SendMetric(srv.URL, tt.metric, client))
+			require.NoError(t, Send(srv.URL+"/update/", tt.metric, client))
+			body, err := json.Marshal(tt.metric)
+			require.NoError(t, err)
+			req, err := http.NewRequest(http.MethodPost, srv.URL+"/value/", bytes.NewBuffer(body))
+			require.NoError(t, err)
+			res, err := client.Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, res.StatusCode)
+
+			var resMetric shared.Metric
+			require.NoError(t, json.NewDecoder(res.Body).Decode(&resMetric))
+			switch tt.metric.MType {
+			case shared.CounterMetricType:
+				assert.Equal(t, *tt.metric.Delta, *resMetric.Delta)
+			case shared.GaugeMetricType:
+				assert.Equal(t, *tt.metric.Value, *resMetric.Value)
+			}
+			require.NoError(t, res.Body.Close())
 		})
 	}
 }

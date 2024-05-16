@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -11,6 +12,11 @@ import (
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
+)
+
+var (
+	ErrMetricNotFound      = errors.New("not found metric ID")
+	ErrIncorrectMetricType = errors.New("incorrect metric TYPE")
 )
 
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
@@ -27,28 +33,15 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	if reqMetric.ID == "" {
-		http.Error(w, "Not found metric ID.", http.StatusNotFound)
-		return
-	}
-
-	switch reqMetric.MType {
-	case shared.CounterMetricType:
-		var value = storages.Storage.Counters[shared.CounterMetricName(reqMetric.ID)] + *reqMetric.Delta
-
-		*reqMetric.Delta = value
-		storages.Storage.Counters[shared.CounterMetricName(reqMetric.ID)] = value
-	case shared.GaugeMetricType:
-		storages.Storage.Gauges[shared.GaugeMetricName(reqMetric.ID)] = *reqMetric.Value
-	default:
-		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
-		return
-	}
-
-	if storages.ToSaveMetricsAsync {
-		if err := storages.Storage.StoreMetrics(); err != nil {
-			logger.Log.Error(err.Error())
+	if err := processMetric(&reqMetric); err != nil {
+		if errors.Is(err, ErrMetricNotFound) {
+			http.Error(w, err.Error(), http.StatusNotFound)
+		} else if errors.Is(err, ErrIncorrectMetricType) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
+		return
 	}
 
 	// json marshal
@@ -76,13 +69,34 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 
 	switch chi.URLParam(r, "type") {
 	case shared.CounterMetricType:
-		value, err := strconv.ParseInt(chi.URLParam(r, "value"), 10, 64)
+		metricValue, err := strconv.ParseInt(chi.URLParam(r, "value"), 10, 64)
 		if err != nil {
 			http.Error(w, "Incorrect metric VALUE: "+err.Error(), http.StatusBadRequest)
 			return
 		}
 
-		storages.Storage.Counters[shared.CounterMetricName(name)] += value
+		counters, err := storages.Storage.GetCounters()
+		if err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+
+		var value int64 = 0
+		for _, counter := range counters {
+			if counter.Name == shared.CounterMetricName(name) {
+				value = counter.Value
+				break
+			}
+		}
+		value += metricValue
+
+		if err := storages.Storage.AddCounter(storages.CounterMetric{
+			Name:  shared.CounterMetricName(name),
+			Value: value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	case shared.GaugeMetricType:
 		value, err := strconv.ParseFloat(chi.URLParam(r, "value"), 64)
 		if err != nil {
@@ -90,11 +104,98 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		storages.Storage.Gauges[shared.GaugeMetricName(name)] = value
+		if err := storages.Storage.AddGauge(storages.GaugeMetric{
+			Name:  shared.GaugeMetricName(name),
+			Value: value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
+	var reqMetrics, resMetrics shared.Metrics
+	if err := json.NewDecoder(r.Body).Decode(&reqMetrics); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	for _, reqMetric := range reqMetrics {
+		if err := processMetric(&reqMetric); err != nil {
+			if errors.Is(err, ErrMetricNotFound) {
+				http.Error(w, err.Error(), http.StatusNotFound)
+			} else if errors.Is(err, ErrIncorrectMetricType) {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+		isExisted := false
+		for key, resMetric := range resMetrics {
+			if resMetric.ID == reqMetric.ID {
+				resMetrics[key] = reqMetric
+				isExisted = true
+			}
+		}
+		if !isExisted {
+			resMetrics = append(resMetrics, reqMetric)
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(resMetrics); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func processMetric(metric *shared.Metric) error {
+	if metric.ID == "" {
+		return ErrMetricNotFound
+	}
+
+	switch metric.MType {
+	case shared.CounterMetricType:
+		counters, err := storages.Storage.GetCounters()
+		if err != nil {
+			return err
+		}
+
+		var value int64 = 0
+		for _, counter := range counters {
+			if counter.Name == shared.CounterMetricName(metric.ID) {
+				value = counter.Value
+				break
+			}
+		}
+		value += *metric.Delta
+
+		*metric.Delta = value
+		if err := storages.Storage.AddCounter(storages.CounterMetric{
+			Name:  shared.CounterMetricName(metric.ID),
+			Value: value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			return err
+		}
+	case shared.GaugeMetricType:
+		if err := storages.Storage.AddGauge(storages.GaugeMetric{
+			Name:  shared.GaugeMetricName(metric.ID),
+			Value: *metric.Value,
+		}); err != nil {
+			logger.Log.Error(err.Error())
+			return err
+		}
+	default:
+		return ErrIncorrectMetricType
+	}
+
+	return nil
 }

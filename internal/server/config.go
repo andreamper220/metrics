@@ -15,6 +15,7 @@ var Config struct {
 	StoreInterval   int
 	FileStoragePath string
 	Restore         bool
+	DatabaseDSN     string
 }
 
 type address struct {
@@ -48,6 +49,7 @@ func ParseFlags() {
 	flag.IntVar(&Config.StoreInterval, "i", 300, "store to file interval [sec]")
 	flag.StringVar(&Config.FileStoragePath, "f", "/tmp/metrics-db.json", "absolute path of file to store")
 	flag.BoolVar(&Config.Restore, "r", true, "to restore values from file")
+	flag.StringVar(&Config.DatabaseDSN, "d", "", "database DSN")
 
 	flag.Parse()
 
@@ -63,6 +65,9 @@ func ParseFlags() {
 	}
 	if restoreEnv := os.Getenv("RESTORE"); restoreEnv != "" {
 		Config.Restore, err = strconv.ParseBool(restoreEnv)
+	}
+	if databaseDsn := os.Getenv("DATABASE_DSN"); databaseDsn != "" {
+		Config.DatabaseDSN = databaseDsn
 	}
 
 	if err != nil {

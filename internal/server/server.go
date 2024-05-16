@@ -1,20 +1,16 @@
 package server
 
 import (
-	"bufio"
-	"encoding/json"
-	"io"
-	"net/http"
-	"os"
-	"time"
-
+	"database/sql"
+	"errors"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"net/http"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/handlers"
 	"github.com/andreamper220/metrics.git/internal/server/middlewares"
 	"github.com/andreamper220/metrics.git/internal/server/storages"
-	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
 func MakeRouter() *chi.Mux {
@@ -24,6 +20,8 @@ func MakeRouter() *chi.Mux {
 		r.Post(`/value/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetric)))
 	})
 	r.Post(`/update/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric)))
+	r.Post(`/updates/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetrics)))
+	r.Get(`/ping`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))
 
 	// deprecated
 	r.Get(`/value/{type}/{name}`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetricOld)))
@@ -32,71 +30,51 @@ func MakeRouter() *chi.Mux {
 	return r
 }
 
+func MakeStorage(blockDone chan bool) error {
+	// choose metrics storage
+	if Config.DatabaseDSN != "" {
+		conn, err := sql.Open("pgx", Config.DatabaseDSN)
+		if err == nil {
+			storages.Storage, err = storages.NewDBStorage(conn)
+			if err != nil {
+				return err
+			}
+		}
+	} else if Config.FileStoragePath != "" {
+		var err error
+		storages.Storage, err = storages.NewFileStorage(
+			Config.FileStoragePath,
+			Config.StoreInterval,
+			Config.Restore,
+			blockDone,
+		)
+		if err != nil {
+			return err
+		}
+	} else {
+		storages.Storage = storages.NewMemStorage()
+	}
+
+	return nil
+}
+
 func Run() error {
 	if err := logger.Initialize(); err != nil {
 		return err
 	}
-	storages.FileStoragePath = Config.FileStoragePath
-	if Config.StoreInterval == 0 {
-		storages.ToSaveMetricsAsync = true
-	}
-
-	// to restore metrics from file
-	if Config.Restore {
-		file, err := os.OpenFile(Config.FileStoragePath, os.O_RDONLY|os.O_CREATE, 0666)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = file.Close()
-		}()
-
-		fr := bufio.NewReader(file)
-		dec := json.NewDecoder(fr)
-		for {
-			var metric shared.Metric
-
-			err := dec.Decode(&metric)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return err
-			}
-
-			switch metric.MType {
-			case shared.CounterMetricType:
-				storages.Storage.Counters[shared.CounterMetricName(metric.ID)] = *metric.Delta
-			case shared.GaugeMetricType:
-				storages.Storage.Gauges[shared.GaugeMetricName(metric.ID)] = *metric.Value
-			default:
-				logger.Log.Fatalf("incorrect metric: %s", metric.ID)
-			}
-		}
-	}
-
-	// to store metrics to file
 	blockDone := make(chan bool)
-	if Config.StoreInterval > 0 {
-		storeTicker := time.NewTicker(time.Duration(Config.StoreInterval) * time.Second)
-		go func() {
-			for {
-				select {
-				case <-storeTicker.C:
-					if err := storages.Storage.StoreMetrics(); err != nil {
-						logger.Log.Error(err.Error())
-					}
-				case <-blockDone:
-					storeTicker.Stop()
-					return
-				}
-			}
-		}()
+	if err := MakeStorage(blockDone); err != nil {
+		return err
+	}
+	if Config.DatabaseDSN != "" {
+		storage, ok := storages.Storage.(*storages.DBStorage)
+		if !ok {
+			return errors.New("DB storage not created")
+		}
+		defer storage.Connection.Close()
 	}
 
 	err := http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
-	if Config.StoreInterval > 0 {
-		<-blockDone
-	}
+	<-blockDone
 	return err
 }

@@ -13,13 +13,11 @@ import (
 	"github.com/avast/retry-go"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
-func SendMetric(url string, metric shared.Metric, client *http.Client) error {
-	requestURL := url + "/update/"
-	body, err := json.Marshal(metric)
+func Send(url string, bodyStruct interface{}, client *http.Client) error {
+	body, err := json.Marshal(bodyStruct)
 	if err != nil {
 		return err
 	}
@@ -36,7 +34,7 @@ func SendMetric(url string, metric shared.Metric, client *http.Client) error {
 
 	err = retry.Do(
 		func() error {
-			req, _ := http.NewRequest(http.MethodPost, requestURL, &b)
+			req, _ := http.NewRequest(http.MethodPost, url, &b)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
 			res, err := client.Do(req)
@@ -71,7 +69,7 @@ func Run() error {
 		for {
 			select {
 			case <-pollTicker.C:
-				storages.Storage.WriteMetrics()
+				updateMetrics()
 			case <-blockDone:
 				pollTicker.Stop()
 				return
@@ -84,28 +82,8 @@ func Run() error {
 		for {
 			select {
 			case <-reportTicker.C:
-				url := "http://" + Config.ServerAddress.String()
-				client := &http.Client{
-					Timeout: 30 * time.Second,
-				}
-
-				for name, value := range storages.Storage.Gauges {
-					if err := SendMetric(url, shared.Metric{
-						ID:    string(name),
-						MType: shared.GaugeMetricType,
-						Value: &value,
-					}, client); err != nil {
-						logger.Log.Error(err.Error())
-					}
-				}
-				for name, value := range storages.Storage.Counters {
-					if err := SendMetric(url, shared.Metric{
-						ID:    string(name),
-						MType: shared.CounterMetricType,
-						Delta: &value,
-					}, client); err != nil {
-						logger.Log.Error(err.Error())
-					}
+				if err := sendMetrics(); err != nil {
+					logger.Log.Error(err.Error())
 				}
 			case <-blockDone:
 				reportTicker.Stop()
@@ -117,4 +95,34 @@ func Run() error {
 	<-blockDone
 
 	return nil
+}
+
+func sendMetrics() error {
+	currentMetrics := readMetrics()
+
+	url := "http://" + Config.ServerAddress.String() + "/updates/"
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
+	metricsIndex := 0
+	for name, value := range currentMetrics.Gauges {
+		metrics[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.GaugeMetricType,
+			Value: &value,
+		}
+		metricsIndex++
+	}
+	for name, value := range currentMetrics.Counters {
+		metrics[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.CounterMetricType,
+			Delta: &value,
+		}
+		metricsIndex++
+	}
+
+	return Send(url, metrics, client)
 }

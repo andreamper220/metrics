@@ -3,10 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
-	"sort"
-
 	"github.com/go-chi/chi/v5"
+	"net/http"
 
 	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
@@ -14,28 +12,26 @@ import (
 
 func ShowMetrics(w http.ResponseWriter, r *http.Request) {
 	body := "== COUNTERS:\r\n"
-	counterNames := make([]string, 0, len(storages.Storage.Counters))
-	for name := range storages.Storage.Counters {
-		counterNames = append(counterNames, string(name))
+	counters, err := storages.Storage.GetCounters()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	sort.Strings(counterNames)
-	for _, name := range counterNames {
-		body += fmt.Sprintf("= %s => %v\r\n", name, storages.Storage.Counters[shared.CounterMetricName(name)])
+	for _, counter := range counters {
+		body += fmt.Sprintf("= %s => %v\r\n", counter.Name, counter.Value)
 	}
 
 	body += "== GAUGES:\r\n"
-	gaugeNames := make([]string, 0, len(storages.Storage.Gauges))
-	for name := range storages.Storage.Gauges {
-		gaugeNames = append(gaugeNames, string(name))
+	gauges, err := storages.Storage.GetGauges()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	sort.Strings(gaugeNames)
-	for _, name := range gaugeNames {
-		body += fmt.Sprintf("= %s => %v\r\n", name, storages.Storage.Gauges[shared.GaugeMetricName(name)])
+	for _, gauge := range gauges {
+		body += fmt.Sprintf("= %s => %v\r\n", gauge.Name, gauge.Value)
 	}
 
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte(body))
+	_, err = w.Write([]byte(body))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -52,21 +48,39 @@ func ShowMetric(w http.ResponseWriter, r *http.Request) {
 
 	switch metric.MType {
 	case shared.CounterMetricType:
-		delta, ok := storages.Storage.Counters[shared.CounterMetricName(metric.ID)]
-		if !ok {
+		isExisted := false
+		counters, err := storages.Storage.GetCounters()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		for _, counter := range counters {
+			if counter.Name == shared.CounterMetricName(metric.ID) {
+				metric.Delta = &counter.Value
+				isExisted = true
+				break
+			}
+		}
+		if !isExisted {
 			http.Error(w, "Incorrect metric ID.", http.StatusNotFound)
 			return
 		}
-
-		metric.Delta = &delta
 	case shared.GaugeMetricType:
-		value, ok := storages.Storage.Gauges[shared.GaugeMetricName(metric.ID)]
-		if !ok {
+		isExisted := false
+		gauges, err := storages.Storage.GetGauges()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		for _, gauge := range gauges {
+			if gauge.Name == shared.GaugeMetricName(metric.ID) {
+				metric.Value = &gauge.Value
+				isExisted = true
+				break
+			}
+		}
+		if !isExisted {
 			http.Error(w, "Incorrect metric ID.", http.StatusNotFound)
 			return
 		}
-
-		metric.Value = &value
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
@@ -86,21 +100,39 @@ func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 
 	switch chi.URLParam(r, "type") {
 	case shared.CounterMetricType:
-		counterValue, ok := storages.Storage.Counters[shared.CounterMetricName(name)]
-		if !ok {
+		isExisted := false
+		counters, err := storages.Storage.GetCounters()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		for _, counter := range counters {
+			if counter.Name == shared.CounterMetricName(name) {
+				value = fmt.Sprintf("%d", counter.Value)
+				isExisted = true
+				break
+			}
+		}
+		if !isExisted {
 			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
 			return
 		}
-
-		value = fmt.Sprintf("%d", counterValue)
 	case shared.GaugeMetricType:
-		gaugeValue, ok := storages.Storage.Gauges[shared.GaugeMetricName(name)]
-		if !ok {
+		isExisted := false
+		gauges, err := storages.Storage.GetGauges()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		for _, gauge := range gauges {
+			if gauge.Name == shared.GaugeMetricName(name) {
+				value = fmt.Sprintf("%g", gauge.Value)
+				isExisted = true
+				break
+			}
+		}
+		if !isExisted {
 			http.Error(w, "Incorrect metric NAME.", http.StatusNotFound)
 			return
 		}
-
-		value = fmt.Sprintf("%g", gaugeValue)
 	default:
 		http.Error(w, "Incorrect metric TYPE.", http.StatusBadRequest)
 		return
@@ -111,4 +143,17 @@ func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func Ping(w http.ResponseWriter, r *http.Request) {
+	storage, ok := storages.Storage.(*storages.DBStorage)
+	if !ok {
+		http.Error(w, "Not implemented", http.StatusNotImplemented)
+		return
+	}
+	if err := storage.Connection.Ping(); err != nil {
+		http.Error(w, "DB storage ping error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
