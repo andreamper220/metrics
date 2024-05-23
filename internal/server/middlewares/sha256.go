@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 )
 
 type sha256ResponseWriter struct {
 	w    http.ResponseWriter
-	hash []byte
+	hash string
 }
 
 func (sw *sha256ResponseWriter) Header() http.Header {
@@ -19,7 +20,7 @@ func (sw *sha256ResponseWriter) WriteHeader(code int) {
 	sw.w.WriteHeader(code)
 }
 func (sw *sha256ResponseWriter) Write(data []byte) (int, error) {
-	sw.w.Header().Set("HashSHA256", string(sw.hash))
+	sw.w.Header().Set("HashSHA256", sw.hash)
 
 	return sw.w.Write(data)
 }
@@ -41,14 +42,15 @@ func WithSha256(hf http.HandlerFunc, key string) http.HandlerFunc {
 		}
 		hash := h.Sum(nil)
 
-		if string(hash) != r.Header.Get("HashSHA256") {
+		hashStr := hex.EncodeToString(hash)
+		if hashStr != r.Header.Get("HashSHA256") {
 			http.Error(w, "Hash is invalid", http.StatusBadRequest)
 			return
 		}
 
 		hf(&sha256ResponseWriter{
 			w:    w,
-			hash: hash,
+			hash: hashStr,
 		}, r)
 	}
 }
