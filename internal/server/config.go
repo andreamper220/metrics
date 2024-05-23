@@ -16,6 +16,7 @@ var Config struct {
 	FileStoragePath string
 	Restore         bool
 	DatabaseDSN     string
+	Sha256Key       string
 }
 
 type address struct {
@@ -50,6 +51,7 @@ func ParseFlags() {
 	flag.StringVar(&Config.FileStoragePath, "f", "/tmp/metrics-db.json", "absolute path of file to store")
 	flag.BoolVar(&Config.Restore, "r", true, "to restore values from file")
 	flag.StringVar(&Config.DatabaseDSN, "d", "", "database DSN")
+	flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
 
 	flag.Parse()
 
@@ -66,8 +68,11 @@ func ParseFlags() {
 	if restoreEnv := os.Getenv("RESTORE"); restoreEnv != "" {
 		Config.Restore, err = strconv.ParseBool(restoreEnv)
 	}
-	if databaseDsn := os.Getenv("DATABASE_DSN"); databaseDsn != "" {
-		Config.DatabaseDSN = databaseDsn
+	if databaseDsnEnv := os.Getenv("DATABASE_DSN"); databaseDsnEnv != "" {
+		Config.DatabaseDSN = databaseDsnEnv
+	}
+	if sha256KeyEnv := os.Getenv("KEY"); sha256KeyEnv != "" {
+		Config.Sha256Key = sha256KeyEnv
 	}
 
 	if err != nil {
