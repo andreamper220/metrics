@@ -25,16 +25,6 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 		return err
 	}
 
-	// hmac sha256
-	var hash []byte
-	if Config.Sha256Key != "" {
-		h := hmac.New(sha256.New, []byte(Config.Sha256Key))
-		if _, err := h.Write(body); err != nil {
-			return err
-		}
-		hash = h.Sum(nil)
-	}
-
 	// gzip compression
 	var b bytes.Buffer
 	zw := gzip.NewWriter(&b)
@@ -43,6 +33,16 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 	}
 	if err := zw.Close(); err != nil {
 		return err
+	}
+
+	// hmac sha256
+	var hash []byte
+	if Config.Sha256Key != "" {
+		h := hmac.New(sha256.New, []byte(Config.Sha256Key))
+		if _, err := h.Write(b.Bytes()); err != nil {
+			return err
+		}
+		hash = h.Sum(nil)
 	}
 
 	err = retry.Do(
@@ -78,6 +78,9 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 }
 
 func Run() error {
+	if err := logger.Initialize(); err != nil {
+		return err
+	}
 	blockDone := make(chan bool)
 
 	pollTicker := time.NewTicker(time.Duration(Config.PollInterval) * time.Second)

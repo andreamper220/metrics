@@ -21,14 +21,12 @@ func MakeRouter() *chi.Mux {
 		r.Post(`/value/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetric)))
 	})
 	// "update" routes
-	updateMetric := handlers.UpdateMetric
-	updateMetrics := handlers.UpdateMetrics
+	updateMetric := middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric))
+	updateMetrics := middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetrics))
 	if Config.Sha256Key != "" {
 		updateMetric = middlewares.WithSha256(updateMetric, Config.Sha256Key)
 		updateMetrics = middlewares.WithSha256(updateMetrics, Config.Sha256Key)
 	}
-	updateMetric = middlewares.WithGzip(middlewares.WithLogging(updateMetric))
-	updateMetrics = middlewares.WithGzip(middlewares.WithLogging(updateMetrics))
 	r.Post(`/update/`, updateMetric)
 	r.Post(`/updates/`, updateMetrics)
 	r.Get(`/ping`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))

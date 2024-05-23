@@ -5,6 +5,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"io"
 	"net/http"
 )
 
@@ -34,6 +35,7 @@ func WithSha256(hf http.HandlerFunc, key string) http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		r.Body = io.NopCloser(bytes.NewBuffer(buf.Bytes()))
 
 		h := hmac.New(sha256.New, []byte(key))
 		if _, err := h.Write(buf.Bytes()); err != nil {
