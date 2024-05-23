@@ -86,7 +86,7 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("Content-Encoding", "gzip")
 				if hash != nil {
-					req.Header.Set("HashSHA256", hex.EncodeToString(hash))
+					req.Header.Set("Hash-SHA256", hex.EncodeToString(hash))
 				}
 				res, err := request.client.Do(req)
 				if err != nil {
@@ -120,40 +120,37 @@ func sendMetrics(requestCh chan<- requestStruct) {
 	defer close(requestCh)
 
 	reportTicker := time.NewTicker(time.Duration(Config.ReportInterval) * time.Second)
-	for {
-		select {
-		case <-reportTicker.C:
-			currentMetrics := readMetrics()
+	for range reportTicker.C {
+		currentMetrics := readMetrics()
 
-			url := "http://" + Config.ServerAddress.String() + "/updates/"
-			client := &http.Client{
-				Timeout: 30 * time.Second,
-			}
+		url := "http://" + Config.ServerAddress.String() + "/updates/"
+		client := &http.Client{
+			Timeout: 30 * time.Second,
+		}
 
-			metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
-			metricsIndex := 0
-			for name, value := range currentMetrics.Gauges {
-				metrics[metricsIndex] = shared.Metric{
-					ID:    string(name),
-					MType: shared.GaugeMetricType,
-					Value: &value,
-				}
-				metricsIndex++
+		metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
+		metricsIndex := 0
+		for name, value := range currentMetrics.Gauges {
+			metrics[metricsIndex] = shared.Metric{
+				ID:    string(name),
+				MType: shared.GaugeMetricType,
+				Value: &value,
 			}
-			for name, value := range currentMetrics.Counters {
-				metrics[metricsIndex] = shared.Metric{
-					ID:    string(name),
-					MType: shared.CounterMetricType,
-					Delta: &value,
-				}
-				metricsIndex++
+			metricsIndex++
+		}
+		for name, value := range currentMetrics.Counters {
+			metrics[metricsIndex] = shared.Metric{
+				ID:    string(name),
+				MType: shared.CounterMetricType,
+				Delta: &value,
 			}
+			metricsIndex++
+		}
 
-			requestCh <- requestStruct{
-				url:        url,
-				bodyStruct: metrics,
-				client:     client,
-			}
+		requestCh <- requestStruct{
+			url:        url,
+			bodyStruct: metrics,
+			client:     client,
 		}
 	}
 }
