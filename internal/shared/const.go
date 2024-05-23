@@ -10,6 +10,7 @@ type GaugeMetricName string
 const (
 	Alloc         = GaugeMetricName("Alloc")
 	BuckHashSys   = GaugeMetricName("BuckHashSys")
+	FreeMemory    = GaugeMetricName("FreeMemory")
 	Frees         = GaugeMetricName("Frees")
 	GcCPUFraction = GaugeMetricName("GCCPUFraction")
 	GcSys         = GaugeMetricName("GCSys")
@@ -36,6 +37,7 @@ const (
 	StackSys      = GaugeMetricName("StackSys")
 	Sys           = GaugeMetricName("Sys")
 	TotalAlloc    = GaugeMetricName("TotalAlloc")
+	TotalMemory   = GaugeMetricName("TotalMemory")
 )
 
 type CounterMetricName string

@@ -64,7 +64,17 @@ func TestSendMetrics(t *testing.T) {
 			srv := httptest.NewServer(r)
 			defer srv.Close()
 
-			require.NoError(t, Send(srv.URL+"/update/", tt.metric, client))
+			requestCh := make(chan requestStruct)
+			errCh := make(chan error)
+			go Sender(requestCh, errCh)
+
+			requestCh <- requestStruct{
+				url:        srv.URL + "/update/",
+				bodyStruct: tt.metric,
+				client:     client,
+			}
+			time.Sleep(time.Second * 2)
+			require.Equal(t, 0, len(errCh))
 			body, err := json.Marshal(tt.metric)
 			require.NoError(t, err)
 			req, err := http.NewRequest(http.MethodPost, srv.URL+"/value/", bytes.NewBuffer(body))
