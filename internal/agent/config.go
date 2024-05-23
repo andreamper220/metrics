@@ -14,6 +14,7 @@ var Config struct {
 	ReportInterval int
 	PollInterval   int
 	Sha256Key      string
+	RateLimit      int
 }
 
 type address struct {
@@ -47,6 +48,7 @@ func ParseFlags() {
 	flag.IntVar(&Config.ReportInterval, "r", 10, "report interval [sec]")
 	flag.IntVar(&Config.PollInterval, "p", 2, "poll interval [sec]")
 	flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+	flag.IntVar(&Config.RateLimit, "l", 10, "requests per report")
 
 	flag.Parse()
 
@@ -62,6 +64,9 @@ func ParseFlags() {
 	}
 	if sha256KeyEnv := os.Getenv("KEY"); sha256KeyEnv != "" {
 		Config.Sha256Key = sha256KeyEnv
+	}
+	if rateLimitEnv := os.Getenv("RATE_LIMIT"); rateLimitEnv != "" {
+		Config.RateLimit, err = strconv.Atoi(rateLimitEnv)
 	}
 
 	if err != nil {
