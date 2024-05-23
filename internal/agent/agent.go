@@ -3,6 +3,9 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"net"
@@ -32,11 +35,24 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 		return err
 	}
 
+	// hmac sha256
+	var hash []byte
+	if Config.Sha256Key != "" {
+		h := hmac.New(sha256.New, []byte(Config.Sha256Key))
+		if _, err := h.Write(b.Bytes()); err != nil {
+			return err
+		}
+		hash = h.Sum(nil)
+	}
+
 	err = retry.Do(
 		func() error {
 			req, _ := http.NewRequest(http.MethodPost, url, &b)
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
+			if hash != nil {
+				req.Header.Set("Hash-Sha256", hex.EncodeToString(hash))
+			}
 			res, err := client.Do(req)
 			if err != nil {
 				var netErr net.Error
@@ -62,6 +78,9 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 }
 
 func Run() error {
+	if err := logger.Initialize(); err != nil {
+		return err
+	}
 	blockDone := make(chan bool)
 
 	pollTicker := time.NewTicker(time.Duration(Config.PollInterval) * time.Second)
