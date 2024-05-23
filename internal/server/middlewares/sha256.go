@@ -46,7 +46,7 @@ func WithSha256(hf http.HandlerFunc, key string) http.HandlerFunc {
 
 		hashStr := hex.EncodeToString(hash)
 		if hashStr != r.Header.Get("Hash") {
-			http.Error(w, "Hash is invalid", http.StatusBadRequest)
+			http.Error(w, "Hash is invalid", http.StatusNotImplemented)
 			return
 		}
 
