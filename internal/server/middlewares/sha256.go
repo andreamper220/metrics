@@ -21,7 +21,7 @@ func (sw *sha256ResponseWriter) WriteHeader(code int) {
 	sw.w.WriteHeader(code)
 }
 func (sw *sha256ResponseWriter) Write(data []byte) (int, error) {
-	sw.w.Header().Set("Hash-SHA256", sw.hash)
+	sw.w.Header().Set("Hash-Sha256", sw.hash)
 
 	return sw.w.Write(data)
 }
@@ -45,7 +45,7 @@ func WithSha256(hf http.HandlerFunc, key string) http.HandlerFunc {
 		hash := h.Sum(nil)
 
 		hashStr := hex.EncodeToString(hash)
-		headerHashStr, isHashHeaderSet := r.Header["Hash-SHA256"]
+		headerHashStr, isHashHeaderSet := r.Header["Hash-Sha256"]
 		if isHashHeaderSet && hashStr != headerHashStr[0] {
 			http.Error(w, "Hash is invalid", http.StatusBadRequest)
 			return

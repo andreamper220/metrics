@@ -86,7 +86,7 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 				req.Header.Set("Content-Type", "application/json")
 				req.Header.Set("Content-Encoding", "gzip")
 				if hash != nil {
-					req.Header.Set("Hash-SHA256", hex.EncodeToString(hash))
+					req.Header.Set("Hash-Sha256", hex.EncodeToString(hash))
 				}
 				res, err := request.client.Do(req)
 				if err != nil {
