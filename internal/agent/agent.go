@@ -51,7 +51,7 @@ func Send(url string, bodyStruct interface{}, client *http.Client) error {
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Content-Encoding", "gzip")
 			if hash != nil {
-				req.Header.Set("Hash", hex.EncodeToString(hash))
+				req.Header.Set("HashSHA256", hex.EncodeToString(hash))
 			}
 			res, err := client.Do(req)
 			if err != nil {
