@@ -3,13 +3,13 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/constraints"
 
 	"github.com/andreamper220/metrics.git/internal/logger"

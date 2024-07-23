@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/andreamper220/metrics.git/internal/server/handlers"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
-	"golang.org/x/exp/constraints"
 	"math/rand"
 	"net/http"
 	"strconv"
 	"testing"
 
+	"golang.org/x/exp/constraints"
+
+	"github.com/andreamper220/metrics.git/internal/server/handlers"
+	"github.com/andreamper220/metrics.git/internal/server/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 

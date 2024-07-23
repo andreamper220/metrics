@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+
 	"github.com/pressly/goose/v3"
 
 	"github.com/andreamper220/metrics.git/internal/shared"
