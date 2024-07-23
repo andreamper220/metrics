@@ -15,12 +15,20 @@ import (
 
 func MakeRouter() *chi.Mux {
 	r := chi.NewRouter()
+	// "show" routes
 	r.Route(`/`, func(r chi.Router) {
 		r.Get(`/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetrics)))
 		r.Post(`/value/`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetric)))
 	})
-	r.Post(`/update/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric)))
-	r.Post(`/updates/`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetrics)))
+	// "update" routes
+	updateMetric := middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetric))
+	updateMetrics := middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetrics))
+	if Config.Sha256Key != "" {
+		updateMetric = middlewares.WithSha256(updateMetric, Config.Sha256Key)
+		updateMetrics = middlewares.WithSha256(updateMetrics, Config.Sha256Key)
+	}
+	r.Post(`/update/`, updateMetric)
+	r.Post(`/updates/`, updateMetrics)
 	r.Get(`/ping`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))
 
 	// deprecated
