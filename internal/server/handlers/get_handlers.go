@@ -98,8 +98,6 @@ func ShowMetric(w http.ResponseWriter, r *http.Request) {
 }
 
 // ShowMetricOld отдаёт значение искомой метрики.
-//
-// Deprecated: используйте ShowMetric.
 func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 	var value string
 	name := chi.URLParam(r, "name")

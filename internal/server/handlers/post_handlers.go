@@ -62,8 +62,6 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateMetricOld обновляет значение искомой метрики.
-//
-// Deprecated: используйте UpdateMetric.
 func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if name == "" {
