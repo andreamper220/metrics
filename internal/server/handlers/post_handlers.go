@@ -19,6 +19,7 @@ var (
 	ErrIncorrectMetricType = errors.New("incorrect metric TYPE")
 )
 
+// UpdateMetric обновляет значение одной метрики, переданной в теле JSON.
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var reqMetric shared.Metric
 	var buf bytes.Buffer
@@ -60,6 +61,9 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateMetricOld обновляет значение искомой метрики.
+//
+// Deprecated: используйте UpdateMetric.
 func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if name == "" {
@@ -119,6 +123,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetrics обновляет значение нескольких метрик, переданных в теле JSON.
 func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	var reqMetrics, resMetrics shared.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&reqMetrics); err != nil {

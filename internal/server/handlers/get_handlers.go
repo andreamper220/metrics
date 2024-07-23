@@ -11,6 +11,7 @@ import (
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
+// ShowMetrics показывает все сохранённые ключ-значения метрик.
 func ShowMetrics(w http.ResponseWriter, r *http.Request) {
 	body := "== COUNTERS:\r\n"
 	counters, err := storages.Storage.GetCounters()
@@ -38,6 +39,7 @@ func ShowMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ShowMetric отдаёт JSON с типом и значением искомой метрики.
 func ShowMetric(w http.ResponseWriter, r *http.Request) {
 	var metric shared.Metric
 
@@ -95,6 +97,9 @@ func ShowMetric(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ShowMetricOld отдаёт значение искомой метрики.
+//
+// Deprecated: используйте ShowMetric.
 func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 	var value string
 	name := chi.URLParam(r, "name")
@@ -146,6 +151,7 @@ func ShowMetricOld(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// Ping отдаёт 200.
 func Ping(w http.ResponseWriter, r *http.Request) {
 	storage, ok := storages.Storage.(*storages.DBStorage)
 	if !ok {
