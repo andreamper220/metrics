@@ -2,11 +2,11 @@ package handlers_test
 
 import (
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server"
 )
 
@@ -16,15 +16,12 @@ type HandlerTestSuite struct {
 }
 
 func (s *HandlerTestSuite) SetupTest() {
-	if err := logger.Initialize(); err != nil {
-		s.Fail(err.Error())
-	}
-	if err := server.MakeStorage(make(chan bool)); err != nil {
-		s.Fail(err.Error())
-	}
+	s.Require().NoError(os.Setenv("KEY", "test_key"))
+	server.ParseFlags()
 
-	r := server.MakeRouter()
-	s.Server = httptest.NewServer(r)
+	s.Require().NoError(server.Run(true))
+
+	s.Server = httptest.NewServer(server.MakeRouter())
 }
 
 func TestHandlersSuite(t *testing.T) {

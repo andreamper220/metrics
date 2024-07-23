@@ -33,7 +33,7 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	if err := processMetric(&reqMetric); err != nil {
+	if err := ProcessMetric(&reqMetric); err != nil {
 		if errors.Is(err, ErrMetricNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
 		} else if errors.Is(err, ErrIncorrectMetricType) {
@@ -127,7 +127,7 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, reqMetric := range reqMetrics {
-		if err := processMetric(&reqMetric); err != nil {
+		if err := ProcessMetric(&reqMetric); err != nil {
 			if errors.Is(err, ErrMetricNotFound) {
 				http.Error(w, err.Error(), http.StatusNotFound)
 			} else if errors.Is(err, ErrIncorrectMetricType) {
@@ -156,7 +156,7 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func processMetric(metric *shared.Metric) error {
+func ProcessMetric(metric *shared.Metric) error {
 	if metric.ID == "" {
 		return ErrMetricNotFound
 	}
