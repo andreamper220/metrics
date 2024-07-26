@@ -1,4 +1,4 @@
-package server
+package application
 
 import (
 	"errors"
@@ -46,12 +46,24 @@ func ParseFlags() {
 		port: 8080,
 	}
 
-	flag.Var(&addr, "a", "server address host:port")
-	flag.IntVar(&Config.StoreInterval, "i", 300, "store to file interval [sec]")
-	flag.StringVar(&Config.FileStoragePath, "f", "", "absolute path of file to store")
-	flag.BoolVar(&Config.Restore, "r", true, "to restore values from file")
-	flag.StringVar(&Config.DatabaseDSN, "d", "", "database DSN")
-	flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+	if flag.Lookup("a") == nil {
+		flag.Var(&addr, "a", "server address host:port")
+	}
+	if flag.Lookup("i") == nil {
+		flag.IntVar(&Config.StoreInterval, "i", 300, "store to file interval [sec]")
+	}
+	if flag.Lookup("f") == nil {
+		flag.StringVar(&Config.FileStoragePath, "f", "", "absolute path of file to store")
+	}
+	if flag.Lookup("r") == nil {
+		flag.BoolVar(&Config.Restore, "r", true, "to restore values from file")
+	}
+	if flag.Lookup("d") == nil {
+		flag.StringVar(&Config.DatabaseDSN, "d", "", "database DSN")
+	}
+	if flag.Lookup("k") == nil {
+		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+	}
 
 	flag.Parse()
 

@@ -10,15 +10,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/server/domain/metrics"
+	"github.com/andreamper220/metrics.git/internal/server/infrastructure/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
-var (
-	ErrMetricNotFound      = errors.New("not found metric ID")
-	ErrIncorrectMetricType = errors.New("incorrect metric TYPE")
-)
-
+// UpdateMetric обновляет значение одной метрики, переданной в теле JSON.
 func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	var reqMetric shared.Metric
 	var buf bytes.Buffer
@@ -33,10 +30,10 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
 
-	if err := processMetric(&reqMetric); err != nil {
-		if errors.Is(err, ErrMetricNotFound) {
+	if err := metrics.ProcessMetric(&reqMetric); err != nil {
+		if errors.Is(err, metrics.ErrMetricNotFound) {
 			http.Error(w, err.Error(), http.StatusNotFound)
-		} else if errors.Is(err, ErrIncorrectMetricType) {
+		} else if errors.Is(err, metrics.ErrIncorrectMetricType) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -60,6 +57,7 @@ func UpdateMetric(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// UpdateMetricOld обновляет значение искомой метрики.
 func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 	name := chi.URLParam(r, "name")
 	if name == "" {
@@ -119,6 +117,7 @@ func UpdateMetricOld(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetrics обновляет значение нескольких метрик, переданных в теле JSON.
 func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	var reqMetrics, resMetrics shared.Metrics
 	if err := json.NewDecoder(r.Body).Decode(&reqMetrics); err != nil {
@@ -127,10 +126,10 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, reqMetric := range reqMetrics {
-		if err := processMetric(&reqMetric); err != nil {
-			if errors.Is(err, ErrMetricNotFound) {
+		if err := metrics.ProcessMetric(&reqMetric); err != nil {
+			if errors.Is(err, metrics.ErrMetricNotFound) {
 				http.Error(w, err.Error(), http.StatusNotFound)
-			} else if errors.Is(err, ErrIncorrectMetricType) {
+			} else if errors.Is(err, metrics.ErrIncorrectMetricType) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 			} else {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -154,48 +153,4 @@ func UpdateMetrics(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(resMetrics); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-func processMetric(metric *shared.Metric) error {
-	if metric.ID == "" {
-		return ErrMetricNotFound
-	}
-
-	switch metric.MType {
-	case shared.CounterMetricType:
-		counters, err := storages.Storage.GetCounters()
-		if err != nil {
-			return err
-		}
-
-		var value int64 = 0
-		for _, counter := range counters {
-			if counter.Name == shared.CounterMetricName(metric.ID) {
-				value = counter.Value
-				break
-			}
-		}
-		value += *metric.Delta
-
-		*metric.Delta = value
-		if err := storages.Storage.AddCounter(storages.CounterMetric{
-			Name:  shared.CounterMetricName(metric.ID),
-			Value: value,
-		}); err != nil {
-			logger.Log.Error(err.Error())
-			return err
-		}
-	case shared.GaugeMetricType:
-		if err := storages.Storage.AddGauge(storages.GaugeMetric{
-			Name:  shared.GaugeMetricName(metric.ID),
-			Value: *metric.Value,
-		}); err != nil {
-			logger.Log.Error(err.Error())
-			return err
-		}
-	default:
-		return ErrIncorrectMetricType
-	}
-
-	return nil
 }

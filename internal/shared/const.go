@@ -5,6 +5,7 @@ const (
 	CounterMetricType = "counter"
 )
 
+// GaugeMetricName определяет набор возможных метрик-значений по умолчанию.
 type GaugeMetricName string
 
 const (
@@ -40,6 +41,7 @@ const (
 	TotalMemory   = GaugeMetricName("TotalMemory")
 )
 
+// CounterMetricName определяет набор возможных метрик-счётчиков по умолчанию.
 type CounterMetricName string
 
 const (

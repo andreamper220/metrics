@@ -1,16 +1,18 @@
-package server
+package application
 
 import (
 	"database/sql"
 	"errors"
+	"net/http"
+	"net/http/pprof"
+
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"net/http"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
-	"github.com/andreamper220/metrics.git/internal/server/handlers"
-	"github.com/andreamper220/metrics.git/internal/server/middlewares"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/server/application/handlers"
+	"github.com/andreamper220/metrics.git/internal/server/application/middlewares"
+	"github.com/andreamper220/metrics.git/internal/server/infrastructure/storages"
 )
 
 func MakeRouter() *chi.Mux {
@@ -34,6 +36,9 @@ func MakeRouter() *chi.Mux {
 	// deprecated
 	r.Get(`/value/{type}/{name}`, middlewares.WithGzip(middlewares.WithLogging(handlers.ShowMetricOld)))
 	r.Post(`/update/{type}/{name}/{value}`, middlewares.WithGzip(middlewares.WithLogging(handlers.UpdateMetricOld)))
+
+	// service
+	r.Get(`/debug/pprof/heap`, pprof.Handler("heap").ServeHTTP)
 
 	return r
 }
@@ -66,7 +71,7 @@ func MakeStorage(blockDone chan bool) error {
 	return nil
 }
 
-func Run() error {
+func Run(serverless bool) error {
 	if err := logger.Initialize(); err != nil {
 		return err
 	}
@@ -80,6 +85,10 @@ func Run() error {
 			return errors.New("DB storage not created")
 		}
 		defer storage.Connection.Close()
+	}
+
+	if serverless {
+		return nil
 	}
 
 	err := http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())

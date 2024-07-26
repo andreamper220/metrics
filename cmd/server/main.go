@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/andreamper220/metrics.git/internal/server"
+	"github.com/andreamper220/metrics.git/internal/server/application"
 )
 
 func main() {
-	server.ParseFlags()
-	if err := server.Run(); err != nil {
+	application.ParseFlags()
+	if err := application.Run(false); err != nil {
 		panic(err)
 	}
 }

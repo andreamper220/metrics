@@ -2,8 +2,9 @@ package logger
 
 import (
 	"fmt"
-	"go.uber.org/zap"
 	"os"
+
+	"go.uber.org/zap"
 )
 
 var Log *zap.SugaredLogger
