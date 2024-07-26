@@ -7,7 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/server/infrastructure/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 

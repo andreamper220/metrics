@@ -1,7 +1,7 @@
 package handlers_test
 
 import (
-	"github.com/andreamper220/metrics.git/internal/server/handlers"
+	"github.com/andreamper220/metrics.git/internal/server/domain/metrics"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
@@ -12,7 +12,7 @@ func ExampleProcessMetric() {
 		Delta: Ptr(int64(1)),
 	}
 
-	if err := handlers.ProcessMetric(&reqMetric); err != nil {
+	if err := metrics.ProcessMetric(&reqMetric); err != nil {
 		return
 	}
 }

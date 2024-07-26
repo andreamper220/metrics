@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/andreamper220/metrics.git/internal/server/application"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
-	"github.com/andreamper220/metrics.git/internal/server"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
@@ -56,11 +56,11 @@ func TestSendMetrics(t *testing.T) {
 			if err := logger.Initialize(); err != nil {
 				t.Fatal(err.Error())
 			}
-			if err := server.MakeStorage(make(chan bool)); err != nil {
+			if err := application.MakeStorage(make(chan bool)); err != nil {
 				t.Fatal(err.Error())
 			}
 
-			r := server.MakeRouter()
+			r := application.MakeRouter()
 			srv := httptest.NewServer(r)
 			defer srv.Close()
 

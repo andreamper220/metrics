@@ -1,4 +1,4 @@
-package server
+package application
 
 import (
 	"database/sql"
@@ -10,9 +10,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
-	"github.com/andreamper220/metrics.git/internal/server/handlers"
-	"github.com/andreamper220/metrics.git/internal/server/middlewares"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/server/application/handlers"
+	"github.com/andreamper220/metrics.git/internal/server/application/middlewares"
+	"github.com/andreamper220/metrics.git/internal/server/infrastructure/storages"
 )
 
 func MakeRouter() *chi.Mux {

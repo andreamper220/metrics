@@ -11,8 +11,8 @@ import (
 
 	"golang.org/x/exp/constraints"
 
-	"github.com/andreamper220/metrics.git/internal/server/handlers"
-	"github.com/andreamper220/metrics.git/internal/server/storages"
+	"github.com/andreamper220/metrics.git/internal/server/domain/metrics"
+	"github.com/andreamper220/metrics.git/internal/server/infrastructure/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
@@ -312,7 +312,7 @@ func (s *HandlerTestSuite) TestUpdateMetricOld() {
 
 func BenchmarkProcessMetric(b *testing.B) {
 	const metricsN = 100
-	metrics := make([]shared.Metric, 0, metricsN)
+	metricsSet := make([]shared.Metric, 0, metricsN)
 
 	letters := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	for i := 0; i < metricsN; i++ {
@@ -320,7 +320,7 @@ func BenchmarkProcessMetric(b *testing.B) {
 		for i := range str {
 			str[i] = letters[rand.Intn(len(letters))]
 		}
-		metrics = append(metrics, shared.Metric{
+		metricsSet = append(metricsSet, shared.Metric{
 			ID:    string(str),
 			MType: shared.CounterMetricType,
 			Delta: Ptr(int64(2)),
@@ -332,7 +332,7 @@ func BenchmarkProcessMetric(b *testing.B) {
 
 	b.Run("metrics", func(b *testing.B) {
 		for i := 0; i < metricsN; i++ {
-			err := handlers.ProcessMetric(&metrics[i])
+			err := metrics.ProcessMetric(&metricsSet[i])
 			if err != nil {
 				b.Fatal(err)
 			}
