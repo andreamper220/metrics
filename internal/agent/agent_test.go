@@ -66,6 +66,9 @@ func TestSendMetrics(t *testing.T) {
 
 			require.NoError(t, os.Setenv("ADDRESS", "localhost:8080"))
 			require.NoError(t, os.Setenv("REPORT_INTERVAL", "10"))
+			require.NoError(t, os.Setenv("POLL_INTERVAL", "2"))
+			require.NoError(t, os.Setenv("KEY", "test_key"))
+			require.NoError(t, os.Setenv("RATE_LIMIT", "10"))
 			ParseFlags()
 
 			requestCh := make(chan requestStruct)
@@ -96,6 +99,8 @@ func TestSendMetrics(t *testing.T) {
 				assert.Equal(t, *tt.metric.Value, *resMetric.Value)
 			}
 			require.NoError(t, res.Body.Close())
+
+			time.Sleep(5 * time.Second)
 		})
 	}
 }

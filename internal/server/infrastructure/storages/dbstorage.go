@@ -68,14 +68,6 @@ func (dbs *DBStorage) AddCounter(metric CounterMetric) error {
 	}
 	return nil
 }
-func (dbs *DBStorage) AddCounters(metrics []CounterMetric) error {
-	if err := insertMetrics(
-		context.Background(), dbs.Connection, metrics, nil,
-	); err != nil {
-		return err
-	}
-	return nil
-}
 func (dbs *DBStorage) GetGauges() ([]GaugeMetric, error) {
 	ctx := context.Background()
 	metrics := make([]GaugeMetric, 0)
@@ -109,14 +101,6 @@ func (dbs *DBStorage) GetGauges() ([]GaugeMetric, error) {
 func (dbs *DBStorage) AddGauge(metric GaugeMetric) error {
 	if err := insertMetric(
 		context.Background(), dbs.Connection, metric.Name, metric.Value, "metrics_gauge",
-	); err != nil {
-		return err
-	}
-	return nil
-}
-func (dbs *DBStorage) AddGauges(metrics []GaugeMetric) error {
-	if err := insertMetrics(
-		context.Background(), dbs.Connection, nil, metrics,
 	); err != nil {
 		return err
 	}

@@ -27,13 +27,6 @@ func (ms *MemStorage) AddCounter(metric CounterMetric) error {
 
 	return nil
 }
-func (ms *MemStorage) AddCounters(metrics []CounterMetric) error {
-	var err error
-	for _, metric := range metrics {
-		err = ms.AddCounter(metric)
-	}
-	return err
-}
 func (ms *MemStorage) GetGauges() ([]GaugeMetric, error) {
 	return ms.metrics.gauges, nil
 }
@@ -51,13 +44,6 @@ func (ms *MemStorage) AddGauge(metric GaugeMetric) error {
 	}
 
 	return nil
-}
-func (ms *MemStorage) AddGauges(metrics []GaugeMetric) error {
-	var err error
-	for _, metric := range metrics {
-		err = ms.AddGauge(metric)
-	}
-	return err
 }
 func (ms *MemStorage) GetMetrics() (Metrics, error) {
 	return ms.metrics, nil
