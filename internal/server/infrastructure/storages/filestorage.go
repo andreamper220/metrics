@@ -73,18 +73,6 @@ func (fs *FileStorage) AddCounter(metric CounterMetric) error {
 
 	return nil
 }
-func (fs *FileStorage) AddCounters(metrics []CounterMetric) error {
-	var err error
-	for _, metric := range metrics {
-		err = fs.AddCounter(metric)
-	}
-
-	if fs.toSaveMetricsAsync {
-		return fs.WriteMetrics()
-	}
-
-	return err
-}
 func (fs *FileStorage) GetGauges() ([]GaugeMetric, error) {
 	return fs.metrics.gauges, nil
 }
@@ -106,18 +94,6 @@ func (fs *FileStorage) AddGauge(metric GaugeMetric) error {
 	}
 
 	return nil
-}
-func (fs *FileStorage) AddGauges(metrics []GaugeMetric) error {
-	var err error
-	for _, metric := range metrics {
-		err = fs.AddGauge(metric)
-	}
-
-	if fs.toSaveMetricsAsync {
-		return fs.WriteMetrics()
-	}
-
-	return err
 }
 func (fs *FileStorage) GetMetrics() (Metrics, error) {
 	return fs.metrics, nil

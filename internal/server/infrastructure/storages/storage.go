@@ -8,10 +8,8 @@ var Storage StorageInterface
 type StorageInterface interface {
 	GetCounters() ([]CounterMetric, error) // получение метрик-счётчиков
 	AddCounter(CounterMetric) error        // добавление метрики-счётчика
-	AddCounters([]CounterMetric) error     // добавление метрик-счётчиков
 	GetGauges() ([]GaugeMetric, error)     // получение метрик-значений
 	AddGauge(GaugeMetric) error            // добавление метрики-значения
-	AddGauges([]GaugeMetric) error         // добавление метрик-значений
 	GetMetrics() (Metrics, error)          // получение всех метрик
 }
 

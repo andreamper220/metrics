@@ -44,11 +44,24 @@ func ParseFlags() {
 		port: 8080,
 	}
 
-	flag.Var(&addr, "a", "server address host:port")
-	flag.IntVar(&Config.ReportInterval, "r", 10, "report interval [sec]")
-	flag.IntVar(&Config.PollInterval, "p", 2, "poll interval [sec]")
-	flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
-	flag.IntVar(&Config.RateLimit, "l", 10, "requests per report")
+	if flag.Lookup("a") == nil {
+		flag.Var(&addr, "a", "server address host:port")
+	}
+	if flag.Lookup("r") == nil {
+		flag.IntVar(&Config.ReportInterval, "r", 10, "report interval [sec]")
+	}
+	if flag.Lookup("p") == nil {
+		flag.IntVar(&Config.PollInterval, "p", 2, "poll interval [sec]")
+	}
+	if flag.Lookup("k") == nil {
+		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+	}
+	if flag.Lookup("l") == nil {
+		flag.IntVar(&Config.RateLimit, "l", 10, "requests per report")
+	}
+	if flag.Lookup("k") == nil {
+		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+	}
 
 	flag.Parse()
 
