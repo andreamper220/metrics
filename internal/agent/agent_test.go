@@ -3,17 +3,17 @@ package agent
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/andreamper220/metrics.git/internal/server/application"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/constraints"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
+	"github.com/andreamper220/metrics.git/internal/server/application"
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
@@ -64,9 +64,13 @@ func TestSendMetrics(t *testing.T) {
 			srv := httptest.NewServer(r)
 			defer srv.Close()
 
+			require.NoError(t, os.Setenv("ADDRESS", "localhost:8080"))
+			require.NoError(t, os.Setenv("REPORT_INTERVAL", "10"))
+			ParseFlags()
+
 			requestCh := make(chan requestStruct)
 			errCh := make(chan error)
-			go Sender(requestCh, errCh)
+			require.NoError(t, Run(requestCh, errCh))
 
 			requestCh <- requestStruct{
 				url:        srv.URL + "/update/",

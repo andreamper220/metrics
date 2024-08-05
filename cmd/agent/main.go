@@ -6,7 +6,7 @@ import (
 
 func main() {
 	agent.ParseFlags()
-	if err := agent.Run(); err != nil {
+	if err := agent.Run(nil, nil); err != nil {
 		panic(err)
 	}
 }
