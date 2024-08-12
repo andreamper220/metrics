@@ -15,6 +15,7 @@ var Config struct {
 	PollInterval   int
 	Sha256Key      string
 	RateLimit      int
+	CryptoKeyPath  string
 }
 
 type address struct {
@@ -62,6 +63,9 @@ func ParseFlags() {
 	if flag.Lookup("k") == nil {
 		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
 	}
+	if flag.Lookup("crypto-key") == nil {
+		flag.StringVar(&Config.CryptoKeyPath, "crypto-key", "", "path to public key file")
+	}
 
 	flag.Parse()
 
@@ -80,6 +84,9 @@ func ParseFlags() {
 	}
 	if rateLimitEnv := os.Getenv("RATE_LIMIT"); rateLimitEnv != "" {
 		Config.RateLimit, err = strconv.Atoi(rateLimitEnv)
+	}
+	if cryptoKeyPathEnv := os.Getenv("CRYPTO_KEY"); cryptoKeyPathEnv != "" {
+		Config.CryptoKeyPath = cryptoKeyPathEnv
 	}
 
 	if err != nil {

@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -84,6 +89,41 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 				continue
 			}
 			hash = h.Sum(nil)
+		}
+
+		// crypto
+		if Config.CryptoKeyPath != "" {
+			publicKeyPEM, err := os.ReadFile(Config.CryptoKeyPath)
+			if err != nil {
+				errCh <- err
+				continue
+			}
+			publicKeyBlock, _ := pem.Decode(publicKeyPEM)
+			publicKey, err := x509.ParsePKIXPublicKey(publicKeyBlock.Bytes)
+			if err != nil {
+				errCh <- err
+				continue
+			}
+
+			msgLen := len(body)
+			step := publicKey.(*rsa.PublicKey).Size() / 2
+			var encryptedBytes []byte
+
+			for start := 0; start < msgLen; start += step {
+				finish := start + step
+				if finish > msgLen {
+					finish = msgLen
+				}
+
+				cipherBody, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey.(*rsa.PublicKey), body[start:finish])
+				if err != nil {
+					errCh <- err
+					continue
+				}
+
+				encryptedBytes = append(encryptedBytes, cipherBody...)
+			}
+			b.Write(encryptedBytes)
 		}
 
 		err = retry.Do(

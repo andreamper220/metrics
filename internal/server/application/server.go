@@ -3,11 +3,10 @@ package application
 import (
 	"database/sql"
 	"errors"
-	"net/http"
-	"net/http/pprof"
-
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"net/http"
+	"net/http/pprof"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/application/handlers"
@@ -28,6 +27,10 @@ func MakeRouter() *chi.Mux {
 	if Config.Sha256Key != "" {
 		updateMetric = middlewares.WithSha256(updateMetric, Config.Sha256Key)
 		updateMetrics = middlewares.WithSha256(updateMetrics, Config.Sha256Key)
+	}
+	if Config.CryptoKeyPath != "" {
+		updateMetric = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
+		updateMetrics = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
 	}
 	r.Post(`/update/`, updateMetric)
 	r.Post(`/updates/`, updateMetrics)

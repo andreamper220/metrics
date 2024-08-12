@@ -17,6 +17,7 @@ var Config struct {
 	Restore         bool
 	DatabaseDSN     string
 	Sha256Key       string
+	CryptoKeyPath   string
 }
 
 type address struct {
@@ -64,6 +65,9 @@ func ParseFlags() {
 	if flag.Lookup("k") == nil {
 		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
 	}
+	if flag.Lookup("crypto-key") == nil {
+		flag.StringVar(&Config.CryptoKeyPath, "crypto-key", "", "path to private key file")
+	}
 
 	flag.Parse()
 
@@ -85,6 +89,9 @@ func ParseFlags() {
 	}
 	if sha256KeyEnv := os.Getenv("KEY"); sha256KeyEnv != "" {
 		Config.Sha256Key = sha256KeyEnv
+	}
+	if cryptoKeyPathEnv := os.Getenv("CRYPTO_KEY"); cryptoKeyPathEnv != "" {
+		Config.CryptoKeyPath = cryptoKeyPathEnv
 	}
 
 	if err != nil {
