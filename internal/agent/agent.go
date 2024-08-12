@@ -25,7 +25,7 @@ type requestStruct struct {
 	client     *http.Client
 }
 
-func Run() error {
+func Run(requestCh chan requestStruct, errCh chan error) error {
 	if err := logger.Initialize(); err != nil {
 		return err
 	}
@@ -33,15 +33,21 @@ func Run() error {
 	go updateMetrics()
 	go updatePsUtilsMetrics()
 
-	requestCh := make(chan requestStruct)
-	errCh := make(chan error)
+	serverless := true
+	if requestCh == nil && errCh == nil {
+		requestCh = make(chan requestStruct)
+		errCh = make(chan error)
+		serverless = false
+	}
 	for s := 1; s <= Config.RateLimit; s++ {
 		go Sender(requestCh, errCh)
 	}
 	go sendMetrics(requestCh)
 
-	for err := range errCh {
-		logger.Log.Error(err.Error())
+	if !serverless {
+		for err := range errCh {
+			logger.Log.Error(err.Error())
+		}
 	}
 
 	return nil
