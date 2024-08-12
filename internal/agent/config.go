@@ -1,13 +1,23 @@
 package agent
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
+
+type jsonConfig struct {
+	Address        string `json:"address"`
+	ReportInterval string `json:"report_interval"`
+	PollInterval   string `json:"poll_interval"`
+	CryptoKeyPath  string `json:"crypto_key"`
+}
 
 var Config struct {
 	ServerAddress  address
@@ -40,6 +50,37 @@ func (a *address) Set(value string) error {
 }
 
 func ParseFlags() {
+	configFilePath := *flag.String("c", "", "config file path")
+	if configFilePathEnv := os.Getenv("CONFIG"); configFilePathEnv != "" {
+		configFilePath = configFilePathEnv
+	}
+	if configFilePath != "" {
+		jsonConfigFile, err := os.Open(configFilePath)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
+		defer jsonConfigFile.Close()
+
+		byteValue, _ := io.ReadAll(jsonConfigFile)
+		var config jsonConfig
+		if err = json.Unmarshal(byteValue, &config); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
+
+		err = Config.ServerAddress.Set(config.Address)
+		reportInterval, err := time.ParseDuration(config.ReportInterval)
+		pollInterval, err := time.ParseDuration(config.PollInterval)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
+		Config.ReportInterval = int(reportInterval.Seconds())
+		Config.PollInterval = int(pollInterval.Seconds())
+		Config.CryptoKeyPath = config.CryptoKeyPath
+	}
+
 	addr := address{
 		host: "localhost",
 		port: 8080,
@@ -47,24 +88,44 @@ func ParseFlags() {
 
 	if flag.Lookup("a") == nil {
 		flag.Var(&addr, "a", "server address host:port")
+		if addr.host != Config.ServerAddress.host || addr.port != Config.ServerAddress.port {
+			Config.ServerAddress = addr
+		}
 	}
 	if flag.Lookup("r") == nil {
-		flag.IntVar(&Config.ReportInterval, "r", 10, "report interval [sec]")
+		var reportInterval int
+		flag.IntVar(&reportInterval, "r", 10, "report interval [sec]")
+		if reportInterval != Config.ReportInterval {
+			Config.ReportInterval = reportInterval
+		}
 	}
 	if flag.Lookup("p") == nil {
-		flag.IntVar(&Config.PollInterval, "p", 2, "poll interval [sec]")
+		var pollInterval int
+		flag.IntVar(&pollInterval, "p", 2, "poll interval [sec]")
+		if pollInterval != Config.PollInterval {
+			Config.PollInterval = pollInterval
+		}
 	}
 	if flag.Lookup("k") == nil {
-		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+		var sha256Key string
+		flag.StringVar(&sha256Key, "k", "", "sha256 key")
+		if sha256Key != Config.Sha256Key {
+			Config.Sha256Key = sha256Key
+		}
 	}
 	if flag.Lookup("l") == nil {
-		flag.IntVar(&Config.RateLimit, "l", 10, "requests per report")
-	}
-	if flag.Lookup("k") == nil {
-		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+		var rateLimit int
+		flag.IntVar(&rateLimit, "l", 10, "requests per report")
+		if rateLimit != Config.RateLimit {
+			Config.RateLimit = rateLimit
+		}
 	}
 	if flag.Lookup("crypto-key") == nil {
-		flag.StringVar(&Config.CryptoKeyPath, "crypto-key", "", "path to public key file")
+		var cryptoKeyPath string
+		flag.StringVar(&cryptoKeyPath, "crypto-key", "", "path to public key file")
+		if cryptoKeyPath != Config.CryptoKeyPath {
+			Config.CryptoKeyPath = cryptoKeyPath
+		}
 	}
 
 	flag.Parse()
