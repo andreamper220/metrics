@@ -15,7 +15,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -44,14 +46,27 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 		errCh = make(chan error)
 		serverless = false
 	}
+	defer close(requestCh)
+	defer close(errCh)
+
 	for s := 1; s <= Config.RateLimit; s++ {
 		go Sender(requestCh, errCh)
 	}
-	go sendMetrics(requestCh)
+
+	sigsCh := make(chan os.Signal, 1)
+	signal.Notify(sigsCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	stopCh := make(chan struct{})
+	go sendMetrics(requestCh, sigsCh, stopCh)
 
 	if !serverless {
-		for err := range errCh {
-			logger.Log.Error(err.Error())
+		for {
+			select {
+			case err := <-errCh:
+				logger.Log.Error(err.Error())
+			case <-stopCh:
+				return nil
+			default:
+			}
 		}
 	}
 
@@ -59,8 +74,6 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 }
 
 func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
-	defer close(errCh)
-
 	for request := range requestCh {
 		body, err := json.Marshal(request.bodyStruct)
 		if err != nil {
@@ -162,41 +175,49 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 	}
 }
 
-func sendMetrics(requestCh chan<- requestStruct) {
-	defer close(requestCh)
-
+func sendMetrics(requestCh chan<- requestStruct, sigsCh <-chan os.Signal, stopCh chan<- struct{}) {
 	reportTicker := time.NewTicker(time.Duration(Config.ReportInterval) * time.Second)
-	for range reportTicker.C {
-		currentMetrics := readMetrics()
+	for {
+		select {
+		case <-sigsCh:
+			reportTicker.Stop()
+			stopCh <- struct{}{}
+		case <-reportTicker.C:
+			go func() {
+				currentMetrics := readMetrics()
 
-		url := "http://" + Config.ServerAddress.String() + "/updates/"
-		client := &http.Client{
-			Timeout: 30 * time.Second,
-		}
+				url := "http://" + Config.ServerAddress.String() + "/updates/"
+				client := &http.Client{
+					Timeout: 30 * time.Second,
+				}
 
-		metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
-		metricsIndex := 0
-		for name, value := range currentMetrics.Gauges {
-			metrics[metricsIndex] = shared.Metric{
-				ID:    string(name),
-				MType: shared.GaugeMetricType,
-				Value: &value,
-			}
-			metricsIndex++
-		}
-		for name, value := range currentMetrics.Counters {
-			metrics[metricsIndex] = shared.Metric{
-				ID:    string(name),
-				MType: shared.CounterMetricType,
-				Delta: &value,
-			}
-			metricsIndex++
-		}
+				metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
+				metricsIndex := 0
+				for name, value := range currentMetrics.Gauges {
+					metrics[metricsIndex] = shared.Metric{
+						ID:    string(name),
+						MType: shared.GaugeMetricType,
+						Value: &value,
+					}
+					metricsIndex++
+				}
+				for name, value := range currentMetrics.Counters {
+					metrics[metricsIndex] = shared.Metric{
+						ID:    string(name),
+						MType: shared.CounterMetricType,
+						Delta: &value,
+					}
+					metricsIndex++
+				}
 
-		requestCh <- requestStruct{
-			url:        url,
-			bodyStruct: metrics,
-			client:     client,
+				requestCh <- requestStruct{
+					url:        url,
+					bodyStruct: metrics,
+					client:     client,
+				}
+				return
+			}()
+		default:
 		}
 	}
 }

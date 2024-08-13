@@ -1,12 +1,16 @@
 package application
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"net/http"
 	"net/http/pprof"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/application/handlers"
@@ -94,7 +98,24 @@ func Run(serverless bool) error {
 		return nil
 	}
 
-	err := http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
+	var srv = http.Server{Addr: Config.ServerAddress.String(), Handler: MakeRouter()}
+
+	idleConnsClosed := make(chan struct{})
+	sigsCh := make(chan os.Signal, 1)
+	signal.Notify(sigsCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	go func() {
+		<-sigsCh
+		if err := srv.Shutdown(context.Background()); err != nil {
+			logger.Log.Error("HTTP server Shutdown: %v", err)
+		}
+		close(idleConnsClosed)
+		close(blockDone)
+		return
+	}()
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		logger.Log.Fatal("HTTP server ListenAndServe: %v", err)
+	}
+	<-idleConnsClosed
 	<-blockDone
-	return err
+	return nil
 }
