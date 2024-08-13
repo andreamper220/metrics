@@ -75,6 +75,10 @@ func ParseFlags() {
 		}
 
 		err = Config.ServerAddress.Set(config.Address)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
 		Config.Restore = config.Restore
 		storeInterval, err := time.ParseDuration(config.StoreInterval)
 		if err != nil {
@@ -85,10 +89,6 @@ func ParseFlags() {
 		Config.FileStoragePath = config.StoreFile
 		Config.DatabaseDSN = config.DatabaseDSN
 		Config.CryptoKeyPath = config.CryptoKeyPath
-		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
-		}
 	}
 
 	addr := address{

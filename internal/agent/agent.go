@@ -65,7 +65,6 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 				logger.Log.Error(err.Error())
 			case <-stopCh:
 				return nil
-			default:
 			}
 		}
 	}
@@ -215,9 +214,7 @@ func sendMetrics(requestCh chan<- requestStruct, sigsCh <-chan os.Signal, stopCh
 					bodyStruct: metrics,
 					client:     client,
 				}
-				return
 			}()
-		default:
 		}
 	}
 }

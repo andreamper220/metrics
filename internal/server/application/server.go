@@ -110,7 +110,6 @@ func Run(serverless bool) error {
 		}
 		close(idleConnsClosed)
 		close(blockDone)
-		return
 	}()
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 		logger.Log.Fatal("HTTP server ListenAndServe: %v", err)

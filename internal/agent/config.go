@@ -70,7 +70,15 @@ func ParseFlags() {
 		}
 
 		err = Config.ServerAddress.Set(config.Address)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
 		reportInterval, err := time.ParseDuration(config.ReportInterval)
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(2)
+		}
 		pollInterval, err := time.ParseDuration(config.PollInterval)
 		if err != nil {
 			fmt.Println(err.Error())
