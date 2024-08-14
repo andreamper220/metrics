@@ -101,13 +101,11 @@ func Run(serverless bool) error {
 	var srv = http.Server{Addr: Config.ServerAddress.String(), Handler: MakeRouter()}
 
 	idleConnsClosed := make(chan struct{})
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 	go func() {
 		<-ctx.Done()
-		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Log.Error("HTTP server Shutdown: %v", err)

@@ -52,12 +52,10 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 		go Sender(requestCh, errCh)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	ctxSignal, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 	defer stop()
 	stopCh := make(chan struct{})
-	go sendMetrics(ctx, requestCh, stopCh)
+	go sendMetrics(ctxSignal, requestCh, stopCh)
 
 	if !serverless {
 		for {
