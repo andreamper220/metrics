@@ -4,10 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
-
-	"github.com/go-chi/chi/v5"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/domain/metrics"

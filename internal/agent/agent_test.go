@@ -69,7 +69,7 @@ func TestSendMetrics(t *testing.T) {
 			require.NoError(t, os.Setenv("POLL_INTERVAL", "2"))
 			require.NoError(t, os.Setenv("KEY", "test_key"))
 			require.NoError(t, os.Setenv("RATE_LIMIT", "10"))
-			ParseFlags()
+			require.NoError(t, ParseFlags())
 
 			requestCh := make(chan requestStruct)
 			errCh := make(chan error)

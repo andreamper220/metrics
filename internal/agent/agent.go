@@ -3,14 +3,22 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/avast/retry-go"
@@ -39,14 +47,28 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 		errCh = make(chan error)
 		serverless = false
 	}
+	defer close(requestCh)
+	defer close(errCh)
+
 	for s := 1; s <= Config.RateLimit; s++ {
 		go Sender(requestCh, errCh)
 	}
-	go sendMetrics(requestCh)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+	stopCh := make(chan struct{})
+	go sendMetrics(ctx, requestCh, stopCh)
 
 	if !serverless {
-		for err := range errCh {
-			logger.Log.Error(err.Error())
+		for {
+			select {
+			case err := <-errCh:
+				logger.Log.Error(err.Error())
+			case <-stopCh:
+				return nil
+			}
 		}
 	}
 
@@ -54,8 +76,6 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 }
 
 func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
-	defer close(errCh)
-
 	for request := range requestCh {
 		body, err := json.Marshal(request.bodyStruct)
 		if err != nil {
@@ -84,6 +104,41 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 				continue
 			}
 			hash = h.Sum(nil)
+		}
+
+		// crypto
+		if Config.CryptoKeyPath != "" {
+			publicKeyPEM, err := os.ReadFile(Config.CryptoKeyPath)
+			if err != nil {
+				errCh <- err
+				continue
+			}
+			publicKeyBlock, _ := pem.Decode(publicKeyPEM)
+			publicKey, err := x509.ParsePKIXPublicKey(publicKeyBlock.Bytes)
+			if err != nil {
+				errCh <- err
+				continue
+			}
+
+			msgLen := len(body)
+			step := publicKey.(*rsa.PublicKey).Size() / 2
+			var encryptedBytes []byte
+
+			for start := 0; start < msgLen; start += step {
+				finish := start + step
+				if finish > msgLen {
+					finish = msgLen
+				}
+
+				cipherBody, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey.(*rsa.PublicKey), body[start:finish])
+				if err != nil {
+					errCh <- err
+					continue
+				}
+
+				encryptedBytes = append(encryptedBytes, cipherBody...)
+			}
+			b.Write(encryptedBytes)
 		}
 
 		err = retry.Do(
@@ -122,41 +177,51 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 	}
 }
 
-func sendMetrics(requestCh chan<- requestStruct) {
-	defer close(requestCh)
-
+func sendMetrics(context context.Context, requestCh chan<- requestStruct, stopCh chan<- struct{}) {
 	reportTicker := time.NewTicker(time.Duration(Config.ReportInterval) * time.Second)
-	for range reportTicker.C {
-		currentMetrics := readMetrics()
+	for {
+		select {
+		case <-context.Done():
+			reportTicker.Stop()
+			stopCh <- struct{}{}
+		case <-reportTicker.C:
+			go func() {
+				url := "http://" + Config.ServerAddress.String() + "/updates/"
+				client := &http.Client{
+					Timeout: 30 * time.Second,
+				}
 
-		url := "http://" + Config.ServerAddress.String() + "/updates/"
-		client := &http.Client{
-			Timeout: 30 * time.Second,
-		}
-
-		metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
-		metricsIndex := 0
-		for name, value := range currentMetrics.Gauges {
-			metrics[metricsIndex] = shared.Metric{
-				ID:    string(name),
-				MType: shared.GaugeMetricType,
-				Value: &value,
-			}
-			metricsIndex++
-		}
-		for name, value := range currentMetrics.Counters {
-			metrics[metricsIndex] = shared.Metric{
-				ID:    string(name),
-				MType: shared.CounterMetricType,
-				Delta: &value,
-			}
-			metricsIndex++
-		}
-
-		requestCh <- requestStruct{
-			url:        url,
-			bodyStruct: metrics,
-			client:     client,
+				requestCh <- requestStruct{
+					url:        url,
+					bodyStruct: buildMetrics(),
+					client:     client,
+				}
+			}()
 		}
 	}
+}
+
+func buildMetrics() []shared.Metric {
+	currentMetrics := readMetrics()
+
+	metricsSlice := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
+	metricsIndex := 0
+	for name, value := range currentMetrics.Gauges {
+		metricsSlice[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.GaugeMetricType,
+			Value: &value,
+		}
+		metricsIndex++
+	}
+	for name, value := range currentMetrics.Counters {
+		metricsSlice[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.CounterMetricType,
+			Delta: &value,
+		}
+		metricsIndex++
+	}
+
+	return metricsSlice
 }

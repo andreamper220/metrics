@@ -1,13 +1,16 @@
 package application
 
 import (
+	"context"
 	"database/sql"
 	"errors"
-	"net/http"
-	"net/http/pprof"
-
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"net/http"
+	"net/http/pprof"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/application/handlers"
@@ -28,6 +31,10 @@ func MakeRouter() *chi.Mux {
 	if Config.Sha256Key != "" {
 		updateMetric = middlewares.WithSha256(updateMetric, Config.Sha256Key)
 		updateMetrics = middlewares.WithSha256(updateMetrics, Config.Sha256Key)
+	}
+	if Config.CryptoKeyPath != "" {
+		updateMetric = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
+		updateMetrics = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
 	}
 	r.Post(`/update/`, updateMetric)
 	r.Post(`/updates/`, updateMetrics)
@@ -91,7 +98,27 @@ func Run(serverless bool) error {
 		return nil
 	}
 
-	err := http.ListenAndServe(Config.ServerAddress.String(), MakeRouter())
+	var srv = http.Server{Addr: Config.ServerAddress.String(), Handler: MakeRouter()}
+
+	idleConnsClosed := make(chan struct{})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
+			logger.Log.Error("HTTP server Shutdown: %v", err)
+		}
+		close(idleConnsClosed)
+		close(blockDone)
+	}()
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		logger.Log.Fatal("HTTP server ListenAndServe: %v", err)
+	}
+	<-idleConnsClosed
 	<-blockDone
-	return err
+	return nil
 }

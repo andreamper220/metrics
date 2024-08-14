@@ -16,7 +16,7 @@ type HandlerTestSuite struct {
 
 func (s *HandlerTestSuite) SetupTest() {
 	s.Require().NoError(os.Setenv("KEY", "test_key"))
-	application.ParseFlags()
+	s.Require().NoError(application.ParseFlags())
 
 	s.Require().NoError(application.Run(true))
 

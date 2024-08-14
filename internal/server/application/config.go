@@ -1,14 +1,24 @@
 package application
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
+	"io"
 	"os"
 	"strconv"
 	"strings"
-
-	"github.com/andreamper220/metrics.git/internal/logger"
+	"time"
 )
+
+type jsonConfig struct {
+	Address       string `json:"address"`
+	Restore       bool   `json:"restore"`
+	StoreInterval string `json:"store_interval"`
+	StoreFile     string `json:"store_file"`
+	DatabaseDSN   string `json:"database_dsn"`
+	CryptoKeyPath string `json:"crypto_key"`
+}
 
 var Config struct {
 	ServerAddress   address
@@ -17,6 +27,7 @@ var Config struct {
 	Restore         bool
 	DatabaseDSN     string
 	Sha256Key       string
+	CryptoKeyPath   string
 }
 
 type address struct {
@@ -40,29 +51,90 @@ func (a *address) Set(value string) error {
 	return err
 }
 
-func ParseFlags() {
+func ParseFlags() error {
+	configFilePath := *flag.String("c", "", "config file path")
+	if configFilePathEnv := os.Getenv("CONFIG"); configFilePathEnv != "" {
+		configFilePath = configFilePathEnv
+	}
+	if configFilePath != "" {
+		jsonConfigFile, err := os.Open(configFilePath)
+		if err != nil {
+			return err
+		}
+		defer jsonConfigFile.Close()
+
+		byteValue, _ := io.ReadAll(jsonConfigFile)
+		var config jsonConfig
+		if err = json.Unmarshal(byteValue, &config); err != nil {
+			return err
+		}
+
+		err = Config.ServerAddress.Set(config.Address)
+		if err != nil {
+			return err
+		}
+		Config.Restore = config.Restore
+		storeInterval, err := time.ParseDuration(config.StoreInterval)
+		if err != nil {
+			return err
+		}
+		Config.StoreInterval = int(storeInterval.Seconds())
+		Config.FileStoragePath = config.StoreFile
+		Config.DatabaseDSN = config.DatabaseDSN
+		Config.CryptoKeyPath = config.CryptoKeyPath
+	}
+
 	addr := address{
 		host: "localhost",
 		port: 8080,
 	}
-
 	if flag.Lookup("a") == nil {
 		flag.Var(&addr, "a", "server address host:port")
+		if addr.host != Config.ServerAddress.host || addr.port != Config.ServerAddress.port {
+			Config.ServerAddress = addr
+		}
 	}
 	if flag.Lookup("i") == nil {
-		flag.IntVar(&Config.StoreInterval, "i", 300, "store to file interval [sec]")
+		var storeInterval int
+		flag.IntVar(&storeInterval, "i", 300, "store to file interval [sec]")
+		if storeInterval != Config.StoreInterval {
+			Config.StoreInterval = storeInterval
+		}
 	}
 	if flag.Lookup("f") == nil {
-		flag.StringVar(&Config.FileStoragePath, "f", "", "absolute path of file to store")
+		var fileStoragePath string
+		flag.StringVar(&fileStoragePath, "f", "", "absolute path of file to store")
+		if fileStoragePath != Config.FileStoragePath {
+			Config.FileStoragePath = fileStoragePath
+		}
 	}
 	if flag.Lookup("r") == nil {
-		flag.BoolVar(&Config.Restore, "r", true, "to restore values from file")
+		var restore bool
+		flag.BoolVar(&restore, "r", true, "to restore values from file")
+		if restore != Config.Restore {
+			Config.Restore = restore
+		}
 	}
 	if flag.Lookup("d") == nil {
-		flag.StringVar(&Config.DatabaseDSN, "d", "", "database DSN")
+		var databaseDSN string
+		flag.StringVar(&databaseDSN, "d", "", "database DSN")
+		if databaseDSN != Config.DatabaseDSN {
+			Config.DatabaseDSN = databaseDSN
+		}
 	}
 	if flag.Lookup("k") == nil {
-		flag.StringVar(&Config.Sha256Key, "k", "", "sha256 key")
+		var sha256Key string
+		flag.StringVar(&sha256Key, "k", "", "sha256 key")
+		if sha256Key != Config.Sha256Key {
+			Config.Sha256Key = sha256Key
+		}
+	}
+	if flag.Lookup("crypto-key") == nil {
+		var cryptoKeyPath string
+		flag.StringVar(&cryptoKeyPath, "crypto-key", "", "path to private key file")
+		if cryptoKeyPath != Config.CryptoKeyPath {
+			Config.CryptoKeyPath = cryptoKeyPath
+		}
 	}
 
 	flag.Parse()
@@ -86,10 +158,14 @@ func ParseFlags() {
 	if sha256KeyEnv := os.Getenv("KEY"); sha256KeyEnv != "" {
 		Config.Sha256Key = sha256KeyEnv
 	}
+	if cryptoKeyPathEnv := os.Getenv("CRYPTO_KEY"); cryptoKeyPathEnv != "" {
+		Config.CryptoKeyPath = cryptoKeyPathEnv
+	}
 
 	if err != nil {
-		logger.Log.Fatal(err.Error())
+		return err
 	}
 
 	Config.ServerAddress = addr
+	return nil
 }
