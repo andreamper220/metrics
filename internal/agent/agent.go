@@ -47,8 +47,6 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 		errCh = make(chan error)
 		serverless = false
 	}
-	defer close(requestCh)
-	defer close(errCh)
 
 	for s := 1; s <= Config.RateLimit; s++ {
 		go Sender(requestCh, errCh)
@@ -76,6 +74,8 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 }
 
 func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
+	defer close(errCh)
+
 	for request := range requestCh {
 		body, err := json.Marshal(request.bodyStruct)
 		if err != nil {
@@ -178,6 +178,8 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 }
 
 func sendMetrics(context context.Context, requestCh chan<- requestStruct, stopCh chan<- struct{}) {
+	defer close(requestCh)
+
 	reportTicker := time.NewTicker(time.Duration(Config.ReportInterval) * time.Second)
 	for {
 		select {

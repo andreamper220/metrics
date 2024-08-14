@@ -52,9 +52,12 @@ func (a *address) Set(value string) error {
 }
 
 func ParseFlags() error {
-	configFilePath := *flag.String("c", "", "config file path")
-	if configFilePathEnv := os.Getenv("CONFIG"); configFilePathEnv != "" {
-		configFilePath = configFilePathEnv
+	var configFilePath string
+	if flag.Lookup("c") == nil {
+		configFilePath = *flag.String("c", "", "config file path")
+		if configFilePathEnv := os.Getenv("CONFIG"); configFilePathEnv != "" {
+			configFilePath = configFilePathEnv
+		}
 	}
 	if configFilePath != "" {
 		jsonConfigFile, err := os.Open(configFilePath)
