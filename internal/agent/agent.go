@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -53,10 +54,12 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 		go Sender(requestCh, errCh)
 	}
 
-	sigsCh := make(chan os.Signal, 1)
-	signal.Notify(sigsCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
 	stopCh := make(chan struct{})
-	go sendMetrics(requestCh, sigsCh, stopCh)
+	go sendMetrics(ctx, requestCh, stopCh)
 
 	if !serverless {
 		for {
@@ -174,47 +177,51 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 	}
 }
 
-func sendMetrics(requestCh chan<- requestStruct, sigsCh <-chan os.Signal, stopCh chan<- struct{}) {
+func sendMetrics(context context.Context, requestCh chan<- requestStruct, stopCh chan<- struct{}) {
 	reportTicker := time.NewTicker(time.Duration(Config.ReportInterval) * time.Second)
 	for {
 		select {
-		case <-sigsCh:
+		case <-context.Done():
 			reportTicker.Stop()
 			stopCh <- struct{}{}
 		case <-reportTicker.C:
 			go func() {
-				currentMetrics := readMetrics()
-
 				url := "http://" + Config.ServerAddress.String() + "/updates/"
 				client := &http.Client{
 					Timeout: 30 * time.Second,
 				}
 
-				metrics := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
-				metricsIndex := 0
-				for name, value := range currentMetrics.Gauges {
-					metrics[metricsIndex] = shared.Metric{
-						ID:    string(name),
-						MType: shared.GaugeMetricType,
-						Value: &value,
-					}
-					metricsIndex++
-				}
-				for name, value := range currentMetrics.Counters {
-					metrics[metricsIndex] = shared.Metric{
-						ID:    string(name),
-						MType: shared.CounterMetricType,
-						Delta: &value,
-					}
-					metricsIndex++
-				}
-
 				requestCh <- requestStruct{
 					url:        url,
-					bodyStruct: metrics,
+					bodyStruct: buildMetrics(),
 					client:     client,
 				}
 			}()
 		}
 	}
+}
+
+func buildMetrics() []shared.Metric {
+	currentMetrics := readMetrics()
+
+	metricsSlice := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
+	metricsIndex := 0
+	for name, value := range currentMetrics.Gauges {
+		metricsSlice[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.GaugeMetricType,
+			Value: &value,
+		}
+		metricsIndex++
+	}
+	for name, value := range currentMetrics.Counters {
+		metricsSlice[metricsIndex] = shared.Metric{
+			ID:    string(name),
+			MType: shared.CounterMetricType,
+			Delta: &value,
+		}
+		metricsIndex++
+	}
+
+	return metricsSlice
 }

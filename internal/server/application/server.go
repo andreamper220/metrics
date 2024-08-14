@@ -8,9 +8,9 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"net/http"
 	"net/http/pprof"
-	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
 	"github.com/andreamper220/metrics.git/internal/server/application/handlers"
@@ -101,11 +101,15 @@ func Run(serverless bool) error {
 	var srv = http.Server{Addr: Config.ServerAddress.String(), Handler: MakeRouter()}
 
 	idleConnsClosed := make(chan struct{})
-	sigsCh := make(chan os.Signal, 1)
-	signal.Notify(sigsCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
 	go func() {
-		<-sigsCh
-		if err := srv.Shutdown(context.Background()); err != nil {
+		<-ctx.Done()
+		ctx, cancel = context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(ctx); err != nil {
 			logger.Log.Error("HTTP server Shutdown: %v", err)
 		}
 		close(idleConnsClosed)

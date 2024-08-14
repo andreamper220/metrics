@@ -49,7 +49,7 @@ func (a *address) Set(value string) error {
 	return err
 }
 
-func ParseFlags() {
+func ParseFlags() error {
 	configFilePath := *flag.String("c", "", "config file path")
 	if configFilePathEnv := os.Getenv("CONFIG"); configFilePathEnv != "" {
 		configFilePath = configFilePathEnv
@@ -65,24 +65,20 @@ func ParseFlags() {
 		byteValue, _ := io.ReadAll(jsonConfigFile)
 		var config jsonConfig
 		if err = json.Unmarshal(byteValue, &config); err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 
 		err = Config.ServerAddress.Set(config.Address)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 		reportInterval, err := time.ParseDuration(config.ReportInterval)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 		pollInterval, err := time.ParseDuration(config.PollInterval)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 		Config.ReportInterval = int(reportInterval.Seconds())
 		Config.PollInterval = int(pollInterval.Seconds())
@@ -159,9 +155,9 @@ func ParseFlags() {
 	}
 
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(2)
+		return err
 	}
 
 	Config.ServerAddress = addr
+	return nil
 }

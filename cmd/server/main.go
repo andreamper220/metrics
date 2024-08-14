@@ -13,7 +13,9 @@ var (
 
 func main() {
 	fmt.Printf("Build version: %s\r\nBuild date: %s\r\nBuild commit: %s\r\n", buildVersion, buildDate, buildCommit)
-	application.ParseFlags()
+	if err := application.ParseFlags(); err != nil {
+		panic(err)
+	}
 	if err := application.Run(false); err != nil {
 		panic(err)
 	}

@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
-	"fmt"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/andreamper220/metrics.git/internal/logger"
 )
 
 type jsonConfig struct {
@@ -54,7 +51,7 @@ func (a *address) Set(value string) error {
 	return err
 }
 
-func ParseFlags() {
+func ParseFlags() error {
 	configFilePath := *flag.String("c", "", "config file path")
 	if configFilePathEnv := os.Getenv("CONFIG"); configFilePathEnv != "" {
 		configFilePath = configFilePathEnv
@@ -62,28 +59,24 @@ func ParseFlags() {
 	if configFilePath != "" {
 		jsonConfigFile, err := os.Open(configFilePath)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 		defer jsonConfigFile.Close()
 
 		byteValue, _ := io.ReadAll(jsonConfigFile)
 		var config jsonConfig
 		if err = json.Unmarshal(byteValue, &config); err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 
 		err = Config.ServerAddress.Set(config.Address)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 		Config.Restore = config.Restore
 		storeInterval, err := time.ParseDuration(config.StoreInterval)
 		if err != nil {
-			fmt.Println(err.Error())
-			os.Exit(2)
+			return err
 		}
 		Config.StoreInterval = int(storeInterval.Seconds())
 		Config.FileStoragePath = config.StoreFile
@@ -170,8 +163,9 @@ func ParseFlags() {
 	}
 
 	if err != nil {
-		logger.Log.Fatal(err.Error())
+		return err
 	}
 
 	Config.ServerAddress = addr
+	return nil
 }
