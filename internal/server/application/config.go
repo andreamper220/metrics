@@ -18,6 +18,7 @@ type jsonConfig struct {
 	StoreFile     string `json:"store_file"`
 	DatabaseDSN   string `json:"database_dsn"`
 	CryptoKeyPath string `json:"crypto_key"`
+	TrustedSubnet string `json:"trusted_subnet"`
 }
 
 var Config struct {
@@ -28,6 +29,7 @@ var Config struct {
 	DatabaseDSN     string
 	Sha256Key       string
 	CryptoKeyPath   string
+	TrustedSubnet   string
 }
 
 type address struct {
@@ -85,6 +87,7 @@ func ParseFlags() error {
 		Config.FileStoragePath = config.StoreFile
 		Config.DatabaseDSN = config.DatabaseDSN
 		Config.CryptoKeyPath = config.CryptoKeyPath
+		Config.TrustedSubnet = config.TrustedSubnet
 	}
 
 	addr := address{
@@ -139,6 +142,13 @@ func ParseFlags() error {
 			Config.CryptoKeyPath = cryptoKeyPath
 		}
 	}
+	if flag.Lookup("t") == nil {
+		var trustedSubnet string
+		flag.StringVar(&trustedSubnet, "t", "", "trusted subnet")
+		if trustedSubnet != Config.TrustedSubnet {
+			Config.TrustedSubnet = trustedSubnet
+		}
+	}
 
 	flag.Parse()
 
@@ -163,6 +173,9 @@ func ParseFlags() error {
 	}
 	if cryptoKeyPathEnv := os.Getenv("CRYPTO_KEY"); cryptoKeyPathEnv != "" {
 		Config.CryptoKeyPath = cryptoKeyPathEnv
+	}
+	if trustedSubnetEnv := os.Getenv("TRUSTED_SUBNET"); trustedSubnetEnv != "" {
+		Config.TrustedSubnet = trustedSubnetEnv
 	}
 
 	if err != nil {

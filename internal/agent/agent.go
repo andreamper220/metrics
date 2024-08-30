@@ -147,6 +147,7 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 				if hash != nil {
 					req.Header.Set("Hash-Sha256", hex.EncodeToString(hash))
 				}
+				req.Header.Set("X-Real-Ip", req.Host)
 				res, err := request.client.Do(req)
 				if err != nil {
 					var netErr net.Error

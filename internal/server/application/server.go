@@ -36,6 +36,10 @@ func MakeRouter() *chi.Mux {
 		updateMetric = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
 		updateMetrics = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
 	}
+	if Config.TrustedSubnet != "" {
+		updateMetric = middlewares.WithIpCheck(updateMetric, Config.TrustedSubnet)
+		updateMetrics = middlewares.WithIpCheck(updateMetric, Config.TrustedSubnet)
+	}
 	r.Post(`/update/`, updateMetric)
 	r.Post(`/updates/`, updateMetrics)
 	r.Get(`/ping`, middlewares.WithGzip(middlewares.WithLogging(handlers.Ping)))
