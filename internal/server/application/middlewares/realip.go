@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func WithIpCheck(hf http.HandlerFunc, trustedSubnetStr string) http.HandlerFunc {
+func WithIPCheck(hf http.HandlerFunc, trustedSubnetStr string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		_, trustedSubnet, err := net.ParseCIDR(trustedSubnetStr)
 		if err != nil {

@@ -37,8 +37,8 @@ func MakeRouter() *chi.Mux {
 		updateMetrics = middlewares.WithCrypto(updateMetric, Config.CryptoKeyPath)
 	}
 	if Config.TrustedSubnet != "" {
-		updateMetric = middlewares.WithIpCheck(updateMetric, Config.TrustedSubnet)
-		updateMetrics = middlewares.WithIpCheck(updateMetric, Config.TrustedSubnet)
+		updateMetric = middlewares.WithIPCheck(updateMetric, Config.TrustedSubnet)
+		updateMetrics = middlewares.WithIPCheck(updateMetric, Config.TrustedSubnet)
 	}
 	r.Post(`/update/`, updateMetric)
 	r.Post(`/updates/`, updateMetrics)
