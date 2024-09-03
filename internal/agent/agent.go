@@ -38,8 +38,8 @@ func Run(requestCh chan requestStruct, errCh chan error) error {
 		return err
 	}
 
-	go updateMetrics()
-	go updatePsUtilsMetrics()
+	go UpdateMetrics()
+	go UpdatePsUtilsMetrics()
 
 	serverless := true
 	if requestCh == nil && errCh == nil {
@@ -147,6 +147,7 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error) {
 				if hash != nil {
 					req.Header.Set("Hash-Sha256", hex.EncodeToString(hash))
 				}
+				req.Header.Set("X-Real-Ip", req.Host)
 				res, err := request.client.Do(req)
 				if err != nil {
 					var netErr net.Error
@@ -202,7 +203,7 @@ func sendMetrics(context context.Context, requestCh chan<- requestStruct, stopCh
 }
 
 func buildMetrics() []shared.Metric {
-	currentMetrics := readMetrics()
+	currentMetrics := ReadMetrics()
 
 	metricsSlice := make([]shared.Metric, len(currentMetrics.Gauges)+len(currentMetrics.Counters))
 	metricsIndex := 0

@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package main;
+
+option go_package = "main/proto";
+
+message Metric {
+  string id = 1;
+  enum Type {
+    COUNTER = 0;
+    GAUGE = 1;
+  }
+  Type type = 2;
+  optional int64 delta = 3;
+  optional double value = 4;
+}
+
+message CounterMetric {
+  Metric metric = 1;
+  int64 delta = 2;
+}
+
+message GaugeMetric {
+  Metric metric = 1;
+  double value = 2;
+}
+
+message GetMetricRequest {
+  Metric metric = 1;
+}
+message GetMetricResponse {
+  Metric metric = 1;
+  string error = 2;
+}
+
+message UpdateCounterRequest {
+  CounterMetric metric = 1;
+}
+message UpdateCounterResponse {
+  CounterMetric metric = 1;
+  string error = 2;
+}
+
+message UpdateGaugeRequest {
+  GaugeMetric metric = 1;
+}
+message UpdateGaugeResponse {
+  GaugeMetric metric = 1;
+  string error = 2;
+}
+
+message UpdateMetricsRequest {
+  repeated Metric metrics = 1;
+}
+message UpdateMetricsResponse {
+  repeated Metric metrics = 1;
+  string error = 2;
+}
+
+service Metrics {
+  rpc GetMetric(GetMetricRequest) returns (GetMetricResponse);
+  rpc UpdateCounter(UpdateCounterRequest) returns (UpdateCounterResponse);
+  rpc UpdateGauge(UpdateGaugeRequest) returns (UpdateGaugeResponse);
+  rpc UpdateMetrics(UpdateMetricsRequest) returns (UpdateMetricsResponse);
+}

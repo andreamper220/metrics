@@ -12,17 +12,17 @@ import (
 	"github.com/andreamper220/metrics.git/internal/shared"
 )
 
-type metricsStruct struct {
+type MetricsStruct struct {
 	Counters map[shared.CounterMetricName]int64
 	Gauges   map[shared.GaugeMetricName]float64
 }
 
-var metrics = &metricsStruct{
+var metrics = &MetricsStruct{
 	Counters: make(map[shared.CounterMetricName]int64),
 	Gauges:   make(map[shared.GaugeMetricName]float64),
 }
 
-func updateMetrics() {
+func UpdateMetrics() {
 	var mstats runtime.MemStats
 
 	pollTicker := time.NewTicker(time.Duration(Config.PollInterval) * time.Second)
@@ -62,7 +62,7 @@ func updateMetrics() {
 	}
 }
 
-func updatePsUtilsMetrics() {
+func UpdatePsUtilsMetrics() {
 	pollTicker := time.NewTicker(time.Duration(Config.PollInterval) * time.Second)
 	for range pollTicker.C {
 		memory, _ := mem.VirtualMemory()
@@ -76,6 +76,6 @@ func updatePsUtilsMetrics() {
 	}
 }
 
-func readMetrics() *metricsStruct {
+func ReadMetrics() *MetricsStruct {
 	return metrics
 }
