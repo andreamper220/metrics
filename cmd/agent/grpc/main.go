@@ -13,7 +13,7 @@ import (
 	pb "github.com/andreamper220/metrics.git/proto"
 )
 
-type requestStruct struct {
+type MetricRequest struct {
 	url        string
 	bodyStruct interface{}
 	client     *pb.MetricsClient
@@ -21,20 +21,17 @@ type requestStruct struct {
 
 func main() {
 	if err := agent.ParseFlags(); err != nil {
-		panic(err)
-	}
-
-	conn, err := grpc.Dial(agent.Config.ServerAddress.String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
 		logger.Log.Fatal(err)
 	}
+
+	conn := initGRPCConn()
 	defer conn.Close()
 	c := pb.NewMetricsClient(conn)
 
 	go agent.UpdateMetrics()
 	go agent.UpdatePsUtilsMetrics()
 
-	requestCh := make(chan requestStruct)
+	requestCh := make(chan MetricRequest)
 	errCh := make(chan error)
 	for s := 1; s <= agent.Config.RateLimit; s++ {
 		go Sender(requestCh, errCh, c)
@@ -55,7 +52,16 @@ func main() {
 	}
 }
 
-func Sender(requestCh <-chan requestStruct, errCh chan<- error, c pb.MetricsClient) {
+func initGRPCConn() *grpc.ClientConn {
+	conn, err := grpc.Dial(agent.Config.ServerAddress.String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		logger.Log.Fatal(err)
+	}
+
+	return conn
+}
+
+func Sender(requestCh <-chan MetricRequest, errCh chan<- error, c pb.MetricsClient) {
 	defer close(errCh)
 
 	for request := range requestCh {
@@ -69,7 +75,7 @@ func Sender(requestCh <-chan requestStruct, errCh chan<- error, c pb.MetricsClie
 	}
 }
 
-func sendMetrics(context context.Context, requestCh chan<- requestStruct, stopCh chan<- struct{}) {
+func sendMetrics(context context.Context, requestCh chan<- MetricRequest, stopCh chan<- struct{}) {
 	defer close(requestCh)
 
 	reportTicker := time.NewTicker(time.Duration(agent.Config.ReportInterval) * time.Second)
@@ -80,7 +86,7 @@ func sendMetrics(context context.Context, requestCh chan<- requestStruct, stopCh
 			stopCh <- struct{}{}
 		case <-reportTicker.C:
 			go func() {
-				requestCh <- requestStruct{
+				requestCh <- MetricRequest{
 					bodyStruct: buildMetrics(),
 				}
 			}()

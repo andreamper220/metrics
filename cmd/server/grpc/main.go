@@ -3,7 +3,6 @@ package grpc
 import (
 	"context"
 	"google.golang.org/grpc"
-	"log"
 	"net"
 
 	"github.com/andreamper220/metrics.git/internal/logger"
@@ -12,6 +11,11 @@ import (
 	"github.com/andreamper220/metrics.git/internal/server/infrastructure/storages"
 	"github.com/andreamper220/metrics.git/internal/shared"
 	pb "github.com/andreamper220/metrics.git/proto"
+)
+
+var (
+	ErrIncorrectMetricID   = "Incorrect metric ID"
+	ErrIncorrectMetricType = "Incorrect metric TYPE"
 )
 
 type MetricsServer struct {
@@ -43,7 +47,7 @@ func (m MetricsServer) GetMetric(ctx context.Context, request *pb.GetMetricReque
 			}
 		}
 		if !isExisted {
-			response.Error = "Incorrect metric ID."
+			response.Error = ErrIncorrectMetricID
 			return &response, nil
 		}
 	case pb.Metric_GAUGE:
@@ -61,11 +65,11 @@ func (m MetricsServer) GetMetric(ctx context.Context, request *pb.GetMetricReque
 			}
 		}
 		if !isExisted {
-			response.Error = "Incorrect metric ID."
+			response.Error = ErrIncorrectMetricID
 			return &response, nil
 		}
 	default:
-		response.Error = "Incorrect metric TYPE."
+		response.Error = ErrIncorrectMetricType
 		return &response, nil
 	}
 	response.Metric = reqMetric
@@ -140,18 +144,23 @@ func (m MetricsServer) UpdateMetrics(ctx context.Context, request *pb.UpdateMetr
 
 func main() {
 	if err := application.ParseFlags(); err != nil {
-		panic(err)
+		logger.Log.Fatal(err)
 	}
 
 	listen, err := net.Listen("tcp", application.Config.ServerAddress.String())
 	if err != nil {
-		log.Fatal(err)
+		logger.Log.Fatal(err)
 	}
+
+	if err := initGRPCServer().Serve(listen); err != nil {
+		logger.Log.Fatal("gRPC server Serve: %v", err)
+	}
+}
+
+func initGRPCServer() *grpc.Server {
 	s := grpc.NewServer()
 	pb.RegisterMetricsServer(s, &MetricsServer{})
 
 	logger.Log.Info("gRPC server started")
-	if err := s.Serve(listen); err != nil {
-		logger.Log.Fatal("gRPC server Serve: %v", err)
-	}
+	return s
 }
